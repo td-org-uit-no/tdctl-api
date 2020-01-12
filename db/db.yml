@@ -1,0 +1,14 @@
+processManagement:
+   fork: true # Runs the db in the background
+net:
+   port: 27018 
+storage:
+   dbPath: ./db_data/
+systemLog:
+  quiet: true
+  destination: file
+  path: "./db_data/mongod.log"
+  logAppend: true
+storage:
+   journal:
+      enabled: true
