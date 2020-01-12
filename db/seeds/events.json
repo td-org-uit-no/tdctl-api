@@ -1,0 +1,10 @@
+[
+    {
+        "_id": ObjectId("5c447528133f7e2fb1b2a148"),
+        "title": "Sunday Sprint",
+        "location": "Realfagbygget A036",
+        "starttime": ISODate("2019-01-20T11:00:00Z"),
+        "endtime": ISODate("2019-01-21T08:00:00Z"),
+        "description": "Vi jobber med diverse forefallende"
+    }
+]

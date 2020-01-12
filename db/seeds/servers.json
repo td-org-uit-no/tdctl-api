@@ -1,0 +1,12 @@
+[
+    {
+        "_id": ObjectId("598acd35a4dc9f0757f0f9b2"),
+        "hostname": "goto.td.org.uit.no",
+        "addresses": "['129.242.219.9', '129.242.219.11']",
+        "position": "RACK1-U33",
+        "owner": ObjectId("598ad225a4dc9f4408f205f0"),
+        "hardware": "HP Proliant DL360 G5\r\nIntel(R) Xeon(R) CPU           E5310  @ 1.60GHz 4C/4T\r\n4GiB DDR2 FB-DIMM\r\n2x 146GB SAS(RAID 1)",
+        "size": "1U",
+        "notes": ""
+    }
+]
