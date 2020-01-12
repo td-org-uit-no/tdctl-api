@@ -8,24 +8,24 @@ api.models['PartialMember'] = PartialMember
 api.models['Member'] = _Member
 
 
-@api.route('/<int:memberid>')
+@api.route('/<int:id>')
 class Member(Resource):
     @api.marshal_with(_Member)
-    def get(self, memberid):
+    def get(self, id):
         '''Returns a member object.'''
         # Should fetch member object from database and return it
-        member = mongo.db.members.find_one({'id': memberid})
+        member = mongo.db.members.find_one({'id': id})
         return member
 
     # TODO
-    def put(self, memberid):
+    def put(self, id):
         '''Updates a member with the fields submitted, and returns new member object.'''
-        return memberid
+        return id
 
     # TODO
-    def delete(self, memberid):
+    def delete(self, id):
         '''Removes a member. Returns ?????'''
-        return memberid
+        return id
 
 
 @api.route('/')  # noqa: F811  # Disables flake8 error with redefinition
