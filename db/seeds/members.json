@@ -1,6 +1,7 @@
 [
     {
         "_id": ObjectId("598ad225a4dc9f4408f205f0"),
+        "id": 0,
         "realName": "Tromsostudentenes Dataforening",
         "email": "td@list.uit.no",
         "phone": "N/A",
