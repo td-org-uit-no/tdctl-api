@@ -1,17 +1,25 @@
 [
-    {
-        "_id": ObjectId("598ad225a4dc9f4408f205f0"),
-        "id": 0,
-        "realName": "Tromsostudentenes Dataforening",
-        "email": "td@list.uit.no",
-        "phone": "N/A",
-        "status": "ACTIVE",
-        "roles": [
-            "ADMIN",
-            "BOARD"
-        ],
-        "password": "pbkdf2:sha256:50000$z75meLU6$c7d703ad756d4354374cf2985edf8e0958d62eede422b08f6d407a4d37e7eb54",
-        "classof": "2000",
-        "graduated": true
-    }
+  {
+    "_id": ObjectId("598ad225a4dc9f4408f205f0"),
+    "id": 0,
+    "realName": "Tromsostudentenes Dataforening",
+    "email": "td@list.uit.no",
+    "phone": "N/A",
+    "status": "ACTIVE",
+    "roles": ["ADMIN", "BOARD"],
+    "password": "pbkdf2:sha256:50000$z75meLU6$c7d703ad756d4354374cf2985edf8e0958d62eede422b08f6d407a4d37e7eb54",
+    "classof": "2000",
+    "graduated": true
+  },
+  {
+    "realName": "Person Lastname",
+    "email": "totalvalid@email.com",
+    "phone": "N/A",
+    "classof": "2000",
+    "graduated": false,
+    "id": 1,
+    "_id": ObjectId("5e1f0c144eb9deac8dab3e2f"),
+    "roles": null,
+    "status": null
+  }
 ]
