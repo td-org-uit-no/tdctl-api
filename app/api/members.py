@@ -1,9 +1,9 @@
 from flask_restplus import Namespace, Resource
-from werkzeug.exceptions import NotFound
+from werkzeug.exceptions import NotFound, Conflict
 
 from ..db import mongo
-from ..token import login_required
 from ..models import PartialMember, Member as _member
+from ..auth_helpers import login_required, role_required
 
 api = Namespace('member', description="interfaces to interact with members")
 
@@ -14,11 +14,10 @@ api.models['Member'] = _member
 
 @api.route('/<int:id>')
 class Member(Resource):
-
-    # TODO: Should this take id?
     @api.marshal_with(_member)
     @api.expect(id, validate=True)
-    @login_required(api, additionalErrors={404: 'Not found - User not found'})
+    @role_required(api, 'Member')
+    @api.response(404, "Not found: User not found")
     def get(self, id):
         '''Returns a user object associated with id passed in'''
         member = mongo.db.members.find_one({'id': id})
@@ -26,25 +25,22 @@ class Member(Resource):
             raise NotFound('User not found')
         return member
 
-    # def put(self, id):
-    #    '''Update member'''
-    #    return id
-
-    # def delete(self, id):
-    #    '''Removes a member. Returns ?????'''
-    #    return id
-
 
 @api.route('/')  # noqa: F811  # Redef error
 class Member(Resource):
 
     @api.expect(PartialMember, validate=True)
     @api.marshal_with(_member)
+    @api.response(409, "Conflict: E-mail is already in use.")
     def post(self):
         '''Creates a new member. Returns the complete object.'''
-        # Check if e-mail already exists ?
-        # Assign id ?
-        api.payload['id'] = 1  # TODO: We need to set ID properly.
+        # TODO:
+        # * Check if e-mail already exists
+        #   * Return a 409: Conflict if it does.
+        # * Clean information: lowercase the email, string trailing spaces etc
+        # * Assign id properly.
+        # * Hash the password.
+        api.payload['id'] = 1
         res = mongo.db.members.insert_one(api.payload)
         return mongo.db.members.find_one(res.inserted_id)
 
