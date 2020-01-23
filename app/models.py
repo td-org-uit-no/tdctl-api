@@ -2,12 +2,13 @@ from flask_restplus import Model, fields
 
 # Used as a base model to create member
 PartialMember = Model('PartialMember', {
-    # Should be changed to name
+    # Should be changed to name? We dont work with nicknames
     'realName': fields.String(required=True),
     'email': fields.String(required=True),
-    'phone': fields.String,  # Should be changed to INTEGER or empty
+    'password': fields.String(required=True),
     'classof': fields.String(required=True),
-    'graduated': fields.Boolean(required=True)
+    'graduated': fields.Boolean(required=True),
+    'phone': fields.String
 })
 
 # Used to respond with a detailed model
