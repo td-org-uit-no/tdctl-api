@@ -12,7 +12,7 @@ from .db import mongo
 def create_token(user: dict):
     payload = {
         # Token lifetime
-        'exp': datetime.utcnow() + timedelta(days=0, minutes=60),
+        'exp': datetime.utcnow() + timedelta(days=0, minutes=10),
         'iat': datetime.utcnow(),
         'user_id': user['id'],
         'roles': user['roles'],
