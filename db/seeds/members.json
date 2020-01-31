@@ -7,7 +7,8 @@
     "classof": "1984",
     "graduated": false,
     "phone": "",
-    "STATUS": "INACTIVE"
+    "status": "INACTIVE",
+    "role": "admin"
   },
   {
     "_id": BinData(3, "P1/9c8axTYWuRmmdj033gw=="),
@@ -17,6 +18,7 @@
     "classof": "2015",
     "graduated": false,
     "phone": "",
-    "STATUS": "INACTIVE"
+    "status": "INACTIVE",
+    "role": "member"
   }
 ]

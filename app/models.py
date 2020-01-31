@@ -18,14 +18,13 @@ Member = Model('Member', {
     'classof': fields.String(required=True),
     'graduated': fields.Boolean(required=True),
     'phone': fields.String,
-    'roles': fields.List(fields.String),
+    'roles': fields.String,
     'status': fields.String,
 })
 
 Login = Model('Login', {
     'email': fields.String(required=True),
     'password': fields.String(required=True)})
-
 
 RefreshToken = Model('RefreshToken', {'refreshToken': fields.String})
 
