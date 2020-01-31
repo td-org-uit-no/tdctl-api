@@ -1,4 +1,4 @@
-from flask_restplus import Namespace, Resource
+from flask_restx import Namespace, Resource
 
 api = Namespace('server',  description="interfaces to interact with servers")
 

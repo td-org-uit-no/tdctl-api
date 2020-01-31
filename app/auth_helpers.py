@@ -1,6 +1,6 @@
 from flask import request, current_app as app
 from functools import wraps
-from flask_restplus import Namespace
+from flask_restx import Namespace
 from datetime import datetime, timedelta
 from werkzeug.exceptions import Unauthorized, Forbidden
 
@@ -136,7 +136,7 @@ def login_required(api: Namespace):
     '''
     Decorator to aid with validation and interpretation of tokens.
 
-    :type api: flask_restplus.Namespace
+    :type api: flask_restx.Namespace
     :param api: Namespace used with decorator - sets response documentation.
 
     If decorated method has argument 'token', the body of the JWT

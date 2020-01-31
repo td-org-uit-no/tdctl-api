@@ -1,4 +1,4 @@
-from flask_restplus import Model, fields
+from flask_restx import Model, fields
 
 # Used as a base model to create member
 PartialMember = Model('PartialMember', {

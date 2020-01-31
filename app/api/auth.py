@@ -1,4 +1,4 @@
-from flask_restplus import Namespace, Resource
+from flask_restx import Namespace, Resource
 from werkzeug.exceptions import Unauthorized, BadRequest
 from werkzeug.security import check_password_hash
 

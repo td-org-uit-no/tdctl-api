@@ -1,4 +1,4 @@
-from flask_restplus import Namespace, Resource
+from flask_restx import Namespace, Resource
 from werkzeug.exceptions import NotFound, Conflict
 from werkzeug.security import generate_password_hash
 from uuid import uuid4

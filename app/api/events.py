@@ -1,4 +1,4 @@
-from flask_restplus import Namespace, Resource
+from flask_restx import Namespace, Resource
 
 api = Namespace('event', description="interfaces to interact with events")
 
