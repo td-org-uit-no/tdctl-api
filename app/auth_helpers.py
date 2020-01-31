@@ -15,7 +15,7 @@ def create_token(user: dict):
         'exp': datetime.utcnow() + timedelta(days=0, minutes=10),
         'iat': datetime.utcnow(),
         'user_id': user['id'],
-        'roles': user['roles'],
+        'role': user['role'],
         'access_token': True        # Separates it from refresh token
     }
     return encode(payload, app.config.get('SECRET_KEY'), algorithm='HS256')
@@ -96,18 +96,13 @@ def is_blacklisted(refreshToken: dict):
     return False
 
 
-'''
-We need to determine if we are going to use roles as a hierarchy
-or as separate roles before continuing the logic in this decorator
-'''
-
-
-def role_required(api: Namespace, roles: list):
+def role_required(api: Namespace, role: str):
     '''
     Decorator to aid with authorization of a resource.
 
     Note:
-        Using this implicitly replaces the functionality of login_required.
+        Using this implicitly replaces the functionality of login_required
+        and only one of the decorators should be used at the same time.
 
     '''
     errors = {
@@ -120,9 +115,10 @@ def role_required(api: Namespace, roles: list):
         @wraps(func)
         def inner(*args, **kwargs):
             payload = authorize(request)
-            if 'ROLES' not in payload:
-                # Should this be forbidden or unauthorized?
-                raise Forbidden('')
+
+            # If token does not contain role, or the role isnt sufficient
+            if "role" not in payload or payload['role'] is not role:
+                raise Forbidden('No privileges to access this resource')
 
             if 'token' in func.__code__.co_varnames:
                 return func(*args, **kwargs, token=payload)
