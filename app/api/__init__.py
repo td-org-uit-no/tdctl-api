@@ -1,4 +1,4 @@
-from flask_restplus import Api
+from flask_restx import Api
 from .members import api as members
 # from .servers import api as servers
 # from .events import api as events
