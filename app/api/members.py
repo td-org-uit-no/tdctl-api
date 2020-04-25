@@ -44,9 +44,10 @@ class Member(Resource):
         # Build the new member
         newMember = api.payload
         newMember['email'] = newMember['email'].lower()  # Lowercase e-mail
-        newMember['_id'] = uuid4()  # Generate ID
+        newMember['_id'] = uuid4().hex  # Generate ID
         newMember['password'] = generate_password_hash(api.payload['password'])
-        newMember['STATUS'] = 'INACTIVE'  # Set default status for new members
+        newMember['role'] = 'Unconfirmed'
+        newMember['status'] = 'Inactive'  # Set default status for new members
 
         res = mongo.db.members.insert_one(newMember)  # Create the user!
 
@@ -54,6 +55,10 @@ class Member(Resource):
         #   * E-mail confirmation
         #   * Password requirements
         #   * Some tiny e-mail validation (Mostly handled by confirmation)
+
+        confirmationCode = uuid4().hex
+        mongo.db.confirmations.insert_one({"confirmationCode": confirmationCode, 'user_id': newMember['_id']})
+        print("confirmation code : ", confirmationCode)
 
         return mongo.db.members.find_one(res.inserted_id)
 

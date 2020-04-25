@@ -18,7 +18,7 @@ Member = Model('Member', {
     'classof': fields.String(required=True),
     'graduated': fields.Boolean(required=True),
     'phone': fields.String,
-    'roles': fields.String,
+    'role': fields.String,
     'status': fields.String,
 })
 
@@ -29,3 +29,5 @@ Login = Model('Login', {
 RefreshToken = Model('RefreshToken', {'refreshToken': fields.String})
 
 Tokens = RefreshToken.clone('Tokens', {'token': fields.String})
+
+ConfirmationCode = Model('ConfirmationCode', {'confirmationCode': fields.String})
