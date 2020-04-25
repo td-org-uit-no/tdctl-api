@@ -1,9 +1,10 @@
 from flask_restx import Namespace, Resource
 from werkzeug.exceptions import Unauthorized, BadRequest
 from werkzeug.security import check_password_hash
+from pymongo import ReturnDocument
 
 from ..db import mongo
-from ..models import Login, Tokens, RefreshToken
+from ..models import Login, Tokens, RefreshToken, ConfirmationCode
 from ..auth_helpers import (create_token, create_refresh_token,
                             login_required, blacklist_token, is_blacklisted,
                             decode_token)
@@ -12,6 +13,7 @@ api = Namespace('auth', description="authentication management")
 api.models['Login'] = Login
 api.models['Tokens'] = Tokens
 api.models['RefreshToken'] = RefreshToken
+api.models['ConfirmationCode'] = ConfirmationCode
 
 
 @api.route('/login/')
@@ -30,7 +32,7 @@ class Auth(Resource):
         # Create token
         token = create_token(user)
         # Create refresh token
-        refreshToken = create_refresh_token()
+        refreshToken = create_refresh_token(user)
         # Return tokens in decoded style
         return {"token": token.decode(), "refreshToken": refreshToken.decode()}
 
@@ -82,3 +84,24 @@ class Auth(Resource):
             "token": token.decode(),
             "refreshToken": refreshToken.decode()
         }
+
+
+@api.route('/confirmationEmail/')  # noqa: F811 # Redef error
+class Auth(Resource):
+    @api.expect(ConfirmationCode, validate=True)
+    def post(self):
+        print(api.payload['confirmationCode'])
+        confirmationObject = mongo.db.confirmations.find_one_and_delete({'confirmationCode': api.payload['confirmationCode']})
+
+        if not confirmationObject:
+            print('Failed')
+            raise BadRequest("Fail")
+
+        user = mongo.db.members.find_one_and_update({'_id': confirmationObject['user_id']},
+                                                    {"$set": {'role': 'Member', 'status': 'Active'}},
+                                                    return_document=ReturnDocument.AFTER)
+
+        if not user:
+            raise BadRequest('Failed')
+
+        return
