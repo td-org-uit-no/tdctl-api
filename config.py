@@ -1,5 +1,4 @@
 import os
-''' Example configurations'''
 
 
 class DevelopmentConfig:
@@ -14,6 +13,9 @@ class DevelopmentConfig:
 
 class ProductionConfig:
     SECRET_KEY = os.environ.get('SECRET_KEY')
+    ENV = 'production'
+    # TODO
+    # Fix mongo-config
 
 
 config = {
