@@ -4,13 +4,14 @@ from werkzeug.security import generate_password_hash
 from uuid import uuid4
 
 from ..db import mongo
-from ..models import PartialMember, Member as _Member
+from ..models import PartialMember, Member as _Member, ConfirmationCode
 from ..auth_helpers import login_required, role_required
 
 api = Namespace('member', description="interfaces to interact with members")
 
 # Register model
 api.models['PartialMember'] = PartialMember
+api.models['ConfirmationCode'] = ConfirmationCode
 api.models['Member'] = _Member
 
 
@@ -18,7 +19,7 @@ api.models['Member'] = _Member
 class Member(Resource):
     @api.marshal_with(_Member)
     @api.expect(id, validate=True)
-    @role_required(api, 'Member')
+    @role_required(api, 'admin')
     @api.response(404, "Not found: User not found")
     def get(self, id):
         '''Returns a user object associated with id passed in'''
@@ -32,35 +33,41 @@ class Member(Resource):
 class Member(Resource):
 
     @api.expect(PartialMember, validate=True)
-    @api.marshal_with(_Member)
+    @api.marshal_with(ConfirmationCode)
     @api.response(409, "Conflict: E-mail is already in use.")
+    @api.response(400, "Bad request: Incorrect format")
     def post(self):
         '''Creates a new member. Returns the complete object.'''
-        existingUser = mongo.db.members.find_one(
+        '''
+        TODO:
+            * E-mail confirmation
+            * Currently returns a ConfirmationCode for development purposes
+            * Password requirements
+            * Some e-mail validation (Mostly handled by confirmation)
+        '''
+
+        exists = mongo.db.members.find_one(
             {'email': api.payload['email'].lower()})
-        if existingUser:
+        if exists:
             raise Conflict('E-mail is already in use.')
 
         # Build the new member
-        newMember = api.payload
-        newMember['email'] = newMember['email'].lower()  # Lowercase e-mail
-        newMember['_id'] = uuid4().hex  # Generate ID
-        newMember['password'] = generate_password_hash(api.payload['password'])
-        newMember['role'] = 'Unconfirmed'
-        newMember['status'] = 'Inactive'  # Set default status for new members
-
-        res = mongo.db.members.insert_one(newMember)  # Create the user!
-
-        # TODO:
-        #   * E-mail confirmation
-        #   * Password requirements
-        #   * Some tiny e-mail validation (Mostly handled by confirmation)
+        new = api.payload
+        new['email'] = new['email'].lower()  # Lowercase e-mail
+        new['_id'] = uuid4().hex  # Generate ID
+        new['password'] = generate_password_hash(api.payload['password'])
+        new['role'] = 'unconfirmed'
+        new['status'] = 'inactive'  # Set default status for new members
+        # Create the user!
+        mongo.db.members.insert_one(new)
 
         confirmationCode = uuid4().hex
-        mongo.db.confirmations.insert_one({"confirmationCode": confirmationCode, 'user_id': newMember['_id']})
-        print("confirmation code : ", confirmationCode)
-
-        return mongo.db.members.find_one(res.inserted_id)
+        mongo.db.confirmations.insert_one(
+            {
+                "confirmationCode": confirmationCode,
+                'user_id': new['_id']
+            })
+        return confirmationCode
 
     @api.marshal_with(_Member)
     @login_required(api)
@@ -72,7 +79,7 @@ class Member(Resource):
 @api.route('s/')  # noqa: F811  # Redef error
 class Member(Resource):
     @api.marshal_list_with(_Member)
-    @login_required(api)
+    @role_required(api, 'admin')
     def get(self):
         '''List all members objects'''
         return [m for m in mongo.db.members.find()]
