@@ -1,4 +1,5 @@
 from flask import Flask
+from flask_cors import CORS
 from config import config
 
 from .api import api
@@ -10,7 +11,7 @@ def create_app(config_name):
     app = Flask(__name__)
     # Fetch config object
     app.config.from_object(config[config_name])
-
+    CORS(app)
     mongo.init_app(app)
 
     # Set tokens to expire at at "exp"
