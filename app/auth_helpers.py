@@ -14,7 +14,7 @@ def create_token(user: dict):
         # Token lifetime
         'exp': datetime.utcnow() + timedelta(days=0, minutes=10),
         'iat': datetime.utcnow(),
-        'user_id': user['_id'].hex,
+        'user_id': user['_id'],
         'role': user['role'],
         'access_token': True        # Separates it from refresh token
     }
@@ -27,7 +27,7 @@ def create_refresh_token(user: dict):
         "exp": datetime.utcnow() + timedelta(days=0, minutes=60),  # Expiry
         "iat": datetime.utcnow(),                                  # Issued at
         "jti": uuid4().hex,                                        # Token id
-        "user_id": user['_id'].hex
+        "user_id": user['_id']
     }, app.config.get('SECRET_KEY'), algorithm='HS256')
 
 
