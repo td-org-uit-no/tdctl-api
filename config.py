@@ -1,4 +1,5 @@
 import os
+from get_docker_secret import get_docker_secret
 
 
 class DevelopmentConfig:
@@ -12,10 +13,12 @@ class DevelopmentConfig:
 
 
 class ProductionConfig:
-    SECRET_KEY = os.environ.get('SECRET_KEY')
+    SECRET_KEY = get_docker_secret('SECRET_KEY', getenv=True)
     ENV = 'production'
-    # TODO
-    # Fix mongo-config
+    MONGO_HOST = os.environ.get('DB_HOSTNAME')
+    MONGO_PORT = os.environ.get('DB_PORT')
+    MONGO_DBNAME = "tdctl"
+    MONGO_URI = "mongodb://%s:%s/%s" % (MONGO_HOST, MONGO_PORT, MONGO_DBNAME)
 
 
 config = {
