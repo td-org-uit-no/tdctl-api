@@ -1,0 +1,40 @@
+version: "3.5"
+services:
+  tdctl_api:
+    image: tdctl_api:latest
+    build:
+      context: ../
+      dockerfile: .docker/dockerfile.api.production
+    environment:
+      DB_HOSTNAME: mongodb
+      DB_PORT: 27017
+      SECRET_KEY: thisisverysecret
+    networks:
+      - frontend
+      - backend
+
+  mongodb:
+    image: mongo:latest
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_DATABASE: tdctl
+    networks:
+      - backend
+
+  nginx:
+    build:
+      context: ../
+      dockerfile: .docker/dockerfile.nginx
+    image: nginx:latest
+    ports:
+      - "11000:80"
+    depends_on:
+      - tdctl_api
+    networks:
+      - frontend
+
+networks:
+  frontend:
+    driver: bridge
+  backend:
+    driver: bridge

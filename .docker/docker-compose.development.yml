@@ -1,0 +1,17 @@
+version: "3.5"
+services:
+  tdctl_api:
+    image: tdctl_api:latest
+    build:
+      context: ../
+      dockerfile: .docker/dockerfile.api
+    ports:
+      - "11000:5000"
+    environment:
+      - CONTAINER=true
+      - PROD=false
+  mongodb:
+    image: mongo:latest
+    restart: always
+    environment:
+      MONGO_INITDB_DATABASE: tdctl
