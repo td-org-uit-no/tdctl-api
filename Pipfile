@@ -15,6 +15,7 @@ flask-pymongo = "==2.3.0"
 pyjwt = "==1.7.1"
 Werkzeug = "==0.16.1"
 flask-cors = "==3.0.8"
+get-docker-secret = "*"
 
 [requires]
 python_version = "3.7"
