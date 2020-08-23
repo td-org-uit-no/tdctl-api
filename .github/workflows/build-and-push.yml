@@ -10,9 +10,6 @@ jobs:
       - name: Checking out code
         uses: actions/checkout@v2
 
-      - name: TODO - Replace secrets with github secrets
-        run: echo "I need to replace the secrets in docker-compose.production.yml"
-
       - name: Build and push Docker images
         uses: docker/build-push-action@v1
         with:
