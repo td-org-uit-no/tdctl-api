@@ -1,0 +1,20 @@
+name: Deploy on dev.td.org.uit.no
+
+# Ignore error below
+on:
+  workflow_run:
+    workflows: ["Build and push docker image"]
+    types:
+      - completed
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH into server and launching update script
+        uses: appleboy/ssh-action@master
+        with:
+          host: dev.td.org.uit.no
+          username: ${{ secrets.DEV_SERVER_USERNAME }}
+          password: ${{ secrets.DEV_SERVER_PASSWORD }}
+          script: ./pull-latest-api.sh
