@@ -1,5 +1,4 @@
 import os
-from get_docker_secret import get_docker_secret
 
 
 class DevelopmentConfig:
@@ -13,7 +12,7 @@ class DevelopmentConfig:
 
 
 class ProductionConfig:
-    SECRET_KEY = get_docker_secret('SECRET_KEY', getenv=True)
+    SECRET_KEY = os.environ.get('SECRET_KEY')
     ENV = 'production'
     MONGO_HOST = os.environ.get('DB_HOSTNAME')
     MONGO_PORT = os.environ.get('DB_PORT')
