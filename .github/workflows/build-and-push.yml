@@ -2,8 +2,6 @@ name: Build and push docker image
 
 on:
   push:
-    branches:
-      - master
 
 jobs:
   build:
@@ -24,3 +22,4 @@ jobs:
           registry: docker.pkg.github.com
           dockerfile: .docker/dockerfile.api.production
           tag_with_sha: true
+          tag_with_ref: true
