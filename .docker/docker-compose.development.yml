@@ -4,7 +4,7 @@ services:
     image: tdctl_api:latest
     build:
       context: ../
-      dockerfile: .docker/dockerfile.api
+      dockerfile: .docker/dockerfile.api.development
     ports:
       - "11000:5000"
     environment:
