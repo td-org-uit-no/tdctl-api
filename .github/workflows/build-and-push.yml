@@ -1,0 +1,18 @@
+name: Build and push docker image
+
+on:
+  push:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Build and tag docker image
+        run: docker build . -f .docker/dockerfile.api.production -t docker.pkg.github.com/td-org-uit-no/tdctl-api/tdctl-api:latest
+      - name: Docker login
+        run: docker login -u td-org-uit-no -p "${DOCKER_PASSWORD}" docker.pkg.github.com
+        env:
+          DOCKER_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+      - name: Push docker image
+        run: docker push docker.pkg.github.com/td-org-uit-no/tdctl-api/tdctl-api:latest
