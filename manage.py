@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import sys
 from app import create_app
 
 def mainEntry(environment='development'):
