@@ -1,4 +1,5 @@
 from flask_restx import Api
+from flask import url_for
 from .members import api as members
 # from .servers import api as servers
 # from .events import api as events
@@ -13,8 +14,16 @@ authorizations = {
         'description': 'Bearer token in format: [Bearer TOKEN]'
     }
 }
+
+# Fix for mixed content when deployed on https. Will be removed when resolved.
+# https://github.com/python-restx/flask-restx/issues/188
+class PatchedApi(Api):
+    @property
+    def specs_url(self):
+        return url_for(self.endpoint('specs'))
+
 # General about API
-api = Api(
+api = PatchedApi(
     title='TDCTL-API',
     version='0.0',
     description='''TDCTL-database API.
