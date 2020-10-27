@@ -1,22 +1,27 @@
-from flask import Flask
-from flask_cors import CORS
-from config import config
+from fastapi import FastAPI
+from .config import config
 
-from .api import api
-from .db import mongo
+from .api import members, auth
+from .db import setup_db
 
 
 def create_app(config_name):
-
-    app = Flask(__name__)
+    app = FastAPI(
+        title='TDCTL-API',
+        version='0.1',
+        description='''TDCTL-database API.
+        Everything related to Tromsøstudentenes Dataforening''',
+        contact='td@list.uit.no',
+        docs_url="/"
+    )
+    app.include_router(members.router, prefix="/member")
+    app.include_router(auth.router, prefix="/auth")
     # Fetch config object
-    app.config.from_object(config[config_name])
-    CORS(app)
-    mongo.init_app(app)
+    app.config = config[config_name]
+    setup_db(app)
 
     # Set tokens to expire at at "exp"
-    mongo.db.tokens.create_index("exp", expireAfterSeconds=0)
+    app.db.tokens.create_index("exp", expireAfterSeconds=0)
     # Init with information from API.py
-    api.init_app(app)
 
     return app
