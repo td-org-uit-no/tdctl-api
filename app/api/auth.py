@@ -1,116 +1,83 @@
-from flask_restx import Namespace, Resource
-from werkzeug.exceptions import Unauthorized, BadRequest, NotFound
+from fastapi import APIRouter, Request, Response, HTTPException
 from werkzeug.security import check_password_hash
 from pymongo import ReturnDocument
 
-from ..db import mongo
-from ..models import Login, Tokens, RefreshToken, ConfirmationCode
-from ..auth_helpers import (create_token, create_refresh_token,
-                            login_required, blacklist_token, is_blacklisted,
-                            decode_token)
-
-api = Namespace('auth', description="authentication management")
-api.models['Login'] = Login
-api.models['Tokens'] = Tokens
-api.models['RefreshToken'] = RefreshToken
-api.models['ConfirmationCode'] = ConfirmationCode
+from ..db import get_database
+from ..auth_helpers import create_token, create_refresh_token, decode_token, blacklist_token, decode, is_blacklisted
+from ..models import Credentials, Tokens, MemberDB, RefreshToken, RefreshTokenPayload
+router = APIRouter()
 
 
-@api.route('/login/')
-class Auth(Resource):
-    @api.expect(Login, validate=True)
-    @api.marshal_with(Tokens)
-    @api.response(400, "Bad request: Incorrect format")
-    @api.response(401, "Incorrect e-mail or password")
-    def post(self):
-        '''Logs user in using credentials and issues tokens'''
-        # Check if user exists
-        user = mongo.db.members.find_one({'email': api.payload['email']})
-        if not user:
-            raise Unauthorized('Incorrect e-mail or password')
-        # Check if password matches
-        if not check_password_hash(user['password'], api.payload['password']):
-            raise Unauthorized('Incorrect e-mail or password')
-        # Create token
-        token = create_token(user)
-        # Create refresh token
-        refreshToken = create_refresh_token(user)
-        # Return tokens in decoded style
-        return {"token": token.decode(), "refreshToken": refreshToken.decode()}
+@router.post("/login", tags=["auth"], response_model=Tokens, responses={401: {"model": None}})
+def login(request: Request, credentials: Credentials):
+    credential_exception = HTTPException(401, "Invalid e-mail or password")
+
+    db = get_database(request)
+    member = db.members.find_one({'email': credentials.email})
+    if not member:
+        raise HTTPException(401, 'Invalid e-mail')
+        #raise credential_exception
+    member = MemberDB.parse_obj(member)
+    if not check_password_hash(member.password, credentials.password):
+        raise credential_exception
+
+    token = create_token(member, request.app.config)
+    refreshToken = create_refresh_token(member, request.app.config)
+    return {"accessToken": token.decode(), "refreshToken": refreshToken.decode()}
 
 
-@api.route('/logout/')  # noqa: F811 # Redef error
-class Auth(Resource):
-    @api.doc(security="Bearer Token")
-    @login_required(api)
-    @api.expect(RefreshToken, validate=True)
-    @api.response(400, "Bad request: Incorrect format")
-    def post(self, token):
-        '''Logs user out and invalidates tokens'''
-        try:
-            refreshToken = decode_token(
-                api.payload["refreshToken"].encode('utf-8'))
-        except:  # noqa: E722
-            raise Unauthorized("Refresh token is invalid")
-
-        blacklist_token(refreshToken)
-        return 200
+@router.post('/logout', tags=["auth"])
+def logout(request: Request, refreshToken: RefreshToken):
+    try:
+        token = RefreshTokenPayload.parse_obj(decode_token(
+            
+            
+            
+            refreshToken.refreshToken, request.app.config))
+    except:
+        raise HTTPException(401, "Refresh token is invalid")
+    blacklist_token(token, request.app.db)
+    return Response(status_code=200)
 
 
-@api.route('/renew/')  # noqa: F811 # Redef error
-class Auth(Resource):
-    @api.marshal_with(Tokens)
-    @api.expect(RefreshToken, validate=True)
-    def post(self):
-        '''Renews tokens by reissuing valid tokens.'''
-        # Decode the old refresh token. Potentially raising errors
-        oldRefreshToken = decode_token(
-            api.payload["refreshToken"].encode('utf-8'))
+@router.post('/renew', tags=["auth"], response_model=Tokens)
+def renew(request: Request, refreshToken: RefreshToken):
+    tokenPayload = RefreshTokenPayload.parse_obj(
+        decode_token(refreshToken.refreshToken, request.app.config))
 
-        # Check if already used / blacklisted
-        if is_blacklisted(oldRefreshToken):
-            raise Unauthorized('Refresh token is blacklisted')
-        # Find member associated with token.
-        user = mongo.db.members.find_one({'_id': oldRefreshToken('user_id')})
-        if not user:
-            # Not sure if this can happen
-            raise BadRequest(
-                'The member associated with refresh token no longer exists')
-
-        # Create new tokens
-        token = create_token(user)
-        refreshToken = create_refresh_token(user)
-
-        # Blacklist the old token
-        blacklist_token(oldRefreshToken)
-        return {
-            "token": token.decode(),
-            "refreshToken": refreshToken.decode()
-        }
+    if is_blacklisted(tokenPayload, request.app.db):
+        raise HTTPException(401, 'Refresh token is blacklisted')
+    user = request.app.db.members.find_one({'id': tokenPayload.user_id})
+    if not user:
+        # Edge case
+        raise HTTPException(
+            400, 'The member associated with refresh token no longer exists')
+    user = MemberDB.parse_obj(user)
+    token = create_token(user, request.app.config)
+    refreshToken = create_refresh_token(user, request.app.config)
+    blacklist_token(tokenPayload, request.app.db)
+    return {"accessToken": token.decode(), "refreshToken": refreshToken.decode()}
 
 
-@api.route('/confirm/')  # noqa: F811 # Redef error
-class Auth(Resource):
-    @api.expect(ConfirmationCode, validate=True)
-    @api.response(200, "Success")
-    @api.response(404, "Not found: Confirmation token could not be matched")
-    def post(self):
-        dbConf = mongo.db.confirmations.find_one_and_delete(
-            {'confirmationCode': api.payload['confirmationCode']})
+@router.post('/confirm/{code}', tags=["auth"])
+def confirm_email(request: Request, code: str):
+    NotMatchedError = HTTPException(
+        404, "Confirmation token could not be matched")
+    db = get_database(request)
+    validated = db.confirmations.find_one_and_delete(
+        {'confirmationCode': code})
+    if not validated:
+        raise NotMatchedError
 
-        if not dbConf:
-            raise NotFound("Confirmation token could not be matched")
+    user = db.members.find_one_and_update(
+        {'id': validated['user_id']},
+        {"$set":
+         {'role': 'member',
+          'status': 'active'}
+         },
+        return_document=ReturnDocument.AFTER)
+    if not user:
+        # User associated with confirmation token does not exist.
+        raise NotMatchedError
 
-        user = mongo.db.members.find_one_and_update(
-            {'_id': dbConf['user_id']},
-            {"$set":
-                {'role': 'member',
-                 'status': 'active'}
-             },
-            return_document=ReturnDocument.AFTER)
-
-        if not user:
-            # User associated with confirmation token does not exist.
-            raise NotFound('Confirmation token could not be matched')
-
-        return 200
+    return Response(status_code=200)
