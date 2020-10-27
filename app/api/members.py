@@ -1,85 +1,67 @@
-from flask_restx import Namespace, Resource
-from werkzeug.exceptions import NotFound, Conflict
+from fastapi import APIRouter, Request, HTTPException, Depends
 from werkzeug.security import generate_password_hash
+from typing import List
 from uuid import uuid4
 
-from ..db import mongo
-from ..models import PartialMember, Member as _Member, ConfirmationCode
-from ..auth_helpers import login_required, role_required
+from ..models import Member, MemberDB, MemberInput, AccessTokenPayload
+from ..auth_helpers import authorize, role_required
+from ..db import get_database
 
-api = Namespace('member', description="interfaces to interact with members")
-
-# Register model
-api.models['PartialMember'] = PartialMember
-api.models['ConfirmationCode'] = ConfirmationCode
-api.models['Member'] = _Member
+router = APIRouter()
 
 
-@api.route('/<int:id>')
-class Member(Resource):
-    @api.marshal_with(_Member)
-    @api.expect(id, validate=True)
-    @role_required(api, 'admin')
-    @api.response(404, "Not found: User not found")
-    def get(self, id):
-        '''Returns a user object associated with id passed in'''
-        member = mongo.db.members.find_one({'id': id})
-        if not member:
-            raise NotFound('User not found')
-        return member
-
-
-@api.route('/')  # noqa: F811  # Redef error
-class Member(Resource):
-
-    @api.expect(PartialMember, validate=True)
-    @api.marshal_with(ConfirmationCode)
-    @api.response(409, "Conflict: E-mail is already in use.")
-    @api.response(400, "Bad request: Incorrect format")
-    def post(self):
-        '''Creates a new member. Returns the complete object.'''
-        '''
+@router.post('/', tags=["member"])
+def create_new_member(request: Request, newMember: MemberInput):
+    '''
         TODO:
             * E-mail confirmation
             * Currently returns a ConfirmationCode for development purposes
             * Password requirements
-            * Some e-mail validation (Mostly handled by confirmation)
-        '''
+    '''
+    db = get_database(request)
+    exists = db.members.find_one({'email': newMember.email.lower()})
+    if exists:
+        raise HTTPException(409, 'E-mail is already in use.')
+    member = MemberDB.parse_obj(newMember.dict())
+    member.id = uuid4().hex  # Generate ID
+    member.email = newMember.email.lower(),  # Lowercase e-mail
+    member.password = generate_password_hash(newMember.password),
+    member.role = 'unconfirmed',
+    member.status = 'inactive',
 
-        exists = mongo.db.members.find_one(
-            {'email': api.payload['email'].lower()})
-        if exists:
-            raise Conflict('E-mail is already in use.')
+    # Create user object
+    db.members.insert_one(member.dict())
 
-        # Build the new member
-        new = api.payload
-        new['email'] = new['email'].lower()  # Lowercase e-mail
-        new['_id'] = uuid4().hex  # Generate ID
-        new['password'] = generate_password_hash(api.payload['password'])
-        new['role'] = 'unconfirmed'
-        new['status'] = 'inactive'  # Set default status for new members
-        # Create the user!
-        mongo.db.members.insert_one(new)
-
-        confirmationCode = uuid4().hex
-        mongo.db.confirmations.insert_one(
-            {
-                "confirmationCode": confirmationCode,
-                'user_id': new['_id']
-            })
-        return confirmationCode
-
-    @api.marshal_with(_Member)
-    @login_required(api)
-    def get(self, token):
-        '''Returns a user object associated with token in header'''
-        return mongo.db.members.find_one_or_404({'id': token['user_id']})
+    # Create confirmation code
+    confirmationCode = uuid4().hex
+    db.confirmations.insert_one(
+        {"confirmationCode": confirmationCode, 'user_id': newMember.id}
+    )
+    return confirmationCode
 
 
-@api.route('s/')  # noqa: F811  # Redef error
-class Member(Resource):
-    @api.marshal_list_with(_Member)
-    @role_required(api, 'admin')
-    def get(self):
-        '''List all members objects'''
-        return [m for m in mongo.db.members.find()]
+@router.get('/', tags=["member"])
+def get_member_associated_with_token(request: Request, token: AccessTokenPayload = Depends(authorize)):
+    db = get_database(request)
+    currentMember = db.members.find_one({'id': token.user_id})
+    if not currentMember:
+        raise HTTPException(404, "User could not be found")
+    return Member.parse_obj(currentMember)
+
+
+@router.get('/{id}', tags=["member"], response_model=Member, responses={404: {"model": None}})
+def get_member_by_id(request: Request, id: str, token: dict = Depends(authorize)):
+    '''Returns a user object associated with id passed in'''
+    db = get_database(request)
+    member = db.members.find_one({'id': id})
+    if not member:
+        raise HTTPException(404, 'Member not found')
+    return Member.parse_obj(member)
+
+
+@router.get("s/", tags=["member"], response_model=List[Member])
+def get_all_members(request: Request, token: AccessTokenPayload = Depends(authorize)):
+    '''List all members objects'''
+    role_required(token, 'admin')
+    db = get_database(request)
+    return [Member.parse_obj(m) for m in db.members.find()]
