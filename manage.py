@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
+import uvicorn
+
 from app import create_app
 
-def mainEntry(environment='development'):
-    return create_app(environment)
 
-# Gunicorn entry point generator
-def appEntry():
-    return mainEntry(environment='production')
+def productionApp():
+    return create_app("production")
+
+
+development = create_app("development")
 
 if __name__ == "__main__":
-    app = mainEntry()
-    app.run(host='0.0.0.0')
-
+    uvicorn.run('manage:development', host='0.0.0.0',
+                reload=True, log_level="info")
