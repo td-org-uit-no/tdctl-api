@@ -1,3 +1,4 @@
+import os
 from fastapi import FastAPI
 from .config import config
 
@@ -5,7 +6,7 @@ from .api import members, auth
 from .db import setup_db
 
 
-def create_app(config_name):
+def create_app():
     app = FastAPI(
         title='TDCTL-API',
         version='0.1',
@@ -17,7 +18,8 @@ def create_app(config_name):
     app.include_router(members.router, prefix="/member")
     app.include_router(auth.router, prefix="/auth")
     # Fetch config object
-    app.config = config[config_name]
+    env = os.getenv('FLASK_APP_ENV', 'default')
+    app.config = config[env]
     setup_db(app)
 
     # Set tokens to expire at at "exp"
