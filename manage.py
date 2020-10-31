@@ -4,12 +4,8 @@ import uvicorn
 from app import create_app
 
 
-def productionApp():
-    return create_app("production")
-
-
-development = create_app("development")
+app = create_app()
 
 if __name__ == "__main__":
-    uvicorn.run('manage:development', host='0.0.0.0',
+    uvicorn.run('manage:app', host='0.0.0.0', port=5000,
                 reload=True, log_level="info")
