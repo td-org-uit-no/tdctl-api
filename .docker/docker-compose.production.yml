@@ -6,6 +6,7 @@ services:
       context: ../
       dockerfile: .docker/dockerfile.api.production
     environment:
+      FLASK_APP_ENV: production
       DB_HOSTNAME: mongodb
       DB_PORT: 27017
       SECRET_KEY: thisisverysecret
@@ -27,7 +28,7 @@ services:
       dockerfile: .docker/dockerfile.nginx
     image: nginx:latest
     ports:
-      - "11000:80"
+      - "5000:80"
     depends_on:
       - tdctl_api
     networks:
