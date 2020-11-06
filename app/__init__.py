@@ -1,5 +1,6 @@
 import os
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from .config import config
 
 from .api import members, auth
@@ -14,6 +15,13 @@ def create_app():
         Everything related to Tromsøstudentenes Dataforening''',
         contact='td@list.uit.no',
         docs_url="/"
+    )
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=['*'],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
     )
     app.include_router(members.router, prefix="/member")
     app.include_router(auth.router, prefix="/auth")
