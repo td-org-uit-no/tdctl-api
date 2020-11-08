@@ -1,10 +1,10 @@
-from fastapi import APIRouter, Request, Response, HTTPException
-from werkzeug.security import check_password_hash
+from fastapi import APIRouter, Request, Response, HTTPException, Depends
+from werkzeug.security import check_password_hash, generate_password_hash
 from pymongo import ReturnDocument
 
 from ..db import get_database
-from ..auth_helpers import create_token, create_refresh_token, decode_token, blacklist_token, decode, is_blacklisted
-from ..models import Credentials, Tokens, MemberDB, RefreshToken, RefreshTokenPayload
+from ..auth_helpers import create_token, create_refresh_token, decode_token, blacklist_token, decode, is_blacklisted, authorize
+from ..models import Credentials, Tokens, MemberDB, RefreshToken, RefreshTokenPayload, AccessTokenPayload, ChangePasswordPayload
 router = APIRouter()
 
 
@@ -30,9 +30,6 @@ def login(request: Request, credentials: Credentials):
 def logout(request: Request, refreshToken: RefreshToken):
     try:
         token = RefreshTokenPayload.parse_obj(decode_token(
-            
-            
-            
             refreshToken.refreshToken, request.app.config))
     except:
         raise HTTPException(401, "Refresh token is invalid")
@@ -79,5 +76,26 @@ def confirm_email(request: Request, code: str):
     if not user:
         # User associated with confirmation token does not exist.
         raise NotMatchedError
+
+    return Response(status_code=200)
+
+
+@router.post('/password', tags=["auth"])
+def change_password(passwords: ChangePasswordPayload, request: Request, token: AccessTokenPayload = Depends(authorize)):
+    db = get_database(request)
+    user = MemberDB.parse_obj(db.members.find_one({'id': token.user_id}))
+    if not user:
+        raise HTTPException(401, 'User not found')
+
+    if not check_password_hash(user.password, passwords.password):
+        raise HTTPException(403, 'Wrong password')
+
+    new_password = generate_password_hash(passwords.newPassword)
+    result = db.members.find_one_and_update(
+        {'id': token.user_id},
+        {"$set": {'password': new_password}})
+
+    if not result:
+        raise HTTPException(500)
 
     return Response(status_code=200)
