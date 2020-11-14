@@ -5,10 +5,11 @@ from pymongo import ReturnDocument
 from ..db import get_database
 from ..auth_helpers import create_token, create_refresh_token, decode_token, blacklist_token, decode, is_blacklisted, authorize
 from ..models import Credentials, Tokens, MemberDB, RefreshToken, RefreshTokenPayload, AccessTokenPayload, ChangePasswordPayload
+
 router = APIRouter()
 
 
-@router.post("/login", tags=["auth"], response_model=Tokens, responses={401: {"model": None}})
+@router.post("/login", response_model=Tokens, responses={401: {"model": None}})
 def login(request: Request, credentials: Credentials):
     credential_exception = HTTPException(401, "Invalid e-mail or password")
 
@@ -26,7 +27,7 @@ def login(request: Request, credentials: Credentials):
     return {"accessToken": token.decode(), "refreshToken": refreshToken.decode()}
 
 
-@router.post('/logout', tags=["auth"])
+@router.post('/logout')
 def logout(request: Request, refreshToken: RefreshToken):
     try:
         token = RefreshTokenPayload.parse_obj(decode_token(
@@ -37,7 +38,7 @@ def logout(request: Request, refreshToken: RefreshToken):
     return Response(status_code=200)
 
 
-@router.post('/renew', tags=["auth"], response_model=Tokens)
+@router.post('/renew', response_model=Tokens)
 def renew(request: Request, refreshToken: RefreshToken):
     tokenPayload = RefreshTokenPayload.parse_obj(
         decode_token(refreshToken.refreshToken, request.app.config))
@@ -56,7 +57,7 @@ def renew(request: Request, refreshToken: RefreshToken):
     return {"accessToken": token.decode(), "refreshToken": refreshToken.decode()}
 
 
-@router.post('/confirm/{code}', tags=["auth"])
+@router.post('/confirm/{code}')
 def confirm_email(request: Request, code: str):
     NotMatchedError = HTTPException(
         404, "Confirmation token could not be matched")
@@ -80,7 +81,7 @@ def confirm_email(request: Request, code: str):
     return Response(status_code=200)
 
 
-@router.post('/password', tags=["auth"])
+@router.post('/password')
 def change_password(passwords: ChangePasswordPayload, request: Request, token: AccessTokenPayload = Depends(authorize)):
     db = get_database(request)
     user = MemberDB.parse_obj(db.members.find_one({'id': token.user_id}))
