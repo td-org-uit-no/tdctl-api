@@ -10,7 +10,7 @@ from ..db import get_database
 router = APIRouter()
 
 
-@router.post('/', tags=["member"])
+@router.post('/')
 def create_new_member(request: Request, newMember: MemberInput):
     '''
         TODO:\n
@@ -43,7 +43,7 @@ def create_new_member(request: Request, newMember: MemberInput):
     return confirmationCode
 
 
-@ router.get('/', tags=["member"])
+@ router.get('/')
 def get_member_associated_with_token(request: Request, token: AccessTokenPayload=Depends(authorize)):
     db=get_database(request)
     currentMember=db.members.find_one({'id': token.user_id})
@@ -52,7 +52,7 @@ def get_member_associated_with_token(request: Request, token: AccessTokenPayload
     return Member.parse_obj(currentMember)
 
 
-@ router.get('/{id}', tags=["member"], response_model=Member, responses={404: {"model": None}})
+@ router.get('/{id}', response_model=Member, responses={404: {"model": None}})
 def get_member_by_id(request: Request, id: str, token: dict=Depends(authorize)):
     '''Returns a user object associated with id passed in'''
     db=get_database(request)
@@ -62,7 +62,7 @@ def get_member_by_id(request: Request, id: str, token: dict=Depends(authorize)):
     return Member.parse_obj(member)
 
 
-@ router.get("s/", tags=["member"], response_model=List[Member])
+@ router.get("s/", response_model=List[Member])
 def get_all_members(request: Request, token: AccessTokenPayload=Depends(authorize)):
     '''List all members objects'''
     role_required(token, 'admin')
