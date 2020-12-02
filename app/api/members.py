@@ -7,7 +7,6 @@ from ..models import Member, MemberDB, MemberInput, AccessTokenPayload
 from ..auth_helpers import authorize, role_required
 from ..db import get_database
 from ..util import validate_password, passwordError
-import re
 
 router = APIRouter()
 
