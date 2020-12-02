@@ -16,7 +16,6 @@ def create_new_member(request: Request, newMember: MemberInput):
         TODO:\n
             - E-mail confirmation
             - Currently returns a ConfirmationCode for development purposes
-            - Password requirements
     '''
     db = get_database(request)
     exists = db.members.find_one({'email': newMember.email.lower()})
