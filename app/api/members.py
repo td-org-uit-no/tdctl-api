@@ -6,9 +6,29 @@ from uuid import uuid4
 from ..models import Member, MemberDB, MemberInput, AccessTokenPayload
 from ..auth_helpers import authorize, role_required
 from ..db import get_database
+import re
 
 router = APIRouter()
 
+def validate_password(password):
+    if len(password) < 8:
+        print ("Password requires 8 characters")
+        return False
+
+    require = [r'\d', r'[A-Z-\/ÆØÅ]', r'[a-z-/\æøå]', r'[@$!%*?&]']
+    errMsg = {
+        r'\d': "Missing digit",
+        r'[A-Z-\/ÆØÅ]': "Missing upper case letter",
+        r'[a-z-/\æøå]': "Missing lower case letter",
+        r'[@$!%*?&]': "Missing special character"
+    }
+
+    for req in require:
+        if not re.search(req, password):
+            print(errMsg[req])
+            return False
+
+    return password
 
 @router.post('/')
 def create_new_member(request: Request, newMember: MemberInput):
@@ -22,6 +42,7 @@ def create_new_member(request: Request, newMember: MemberInput):
     exists = db.members.find_one({'email': newMember.email.lower()})
     if exists:
         raise HTTPException(409, 'E-mail is already in use.')
+    validate_password(newMember.password)
     additionalFields = {
         'id': uuid4().hex,  # Generate ID
         'email': newMember.email.lower(),  # Lowercase e-mail
