@@ -5,6 +5,7 @@ from pymongo import ReturnDocument
 from ..db import get_database
 from ..auth_helpers import create_token, create_refresh_token, decode_token, blacklist_token, decode, is_blacklisted, authorize
 from ..models import Credentials, Tokens, MemberDB, RefreshToken, RefreshTokenPayload, AccessTokenPayload, ChangePasswordPayload
+from ..util import validate_password, passwordError
 
 router = APIRouter()
 
@@ -90,6 +91,9 @@ def change_password(passwords: ChangePasswordPayload, request: Request, token: A
 
     if not check_password_hash(user.password, passwords.password):
         raise HTTPException(403, 'Wrong password')
+
+    if not validate_password(passwords.newPassword):
+        raise HTTPException(400, passwordError)
 
     new_password = generate_password_hash(passwords.newPassword)
     result = db.members.find_one_and_update(
