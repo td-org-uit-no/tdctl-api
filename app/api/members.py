@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Request, HTTPException, Depends
+from fastapi import APIRouter, Response, Request, HTTPException, Depends
 from werkzeug.security import generate_password_hash
 from typing import List
 from uuid import uuid4
@@ -71,3 +71,17 @@ def get_all_members(request: Request, token: AccessTokenPayload=Depends(authoriz
     role_required(token, 'admin')
     db=get_database(request)
     return [Member.parse_obj(m) for m in db.members.find()]
+
+@ router.post('/activate')
+def change_status(request: Request, token: AccessTokenPayload=Depends(authorize)):
+    db=get_database(request)
+    member = db.members.find_one({'id': token.user_id})
+    if not member:
+        raise HTTPException(404, 'Member not found')
+    result = db.members.find_one_and_update(
+        {'id': token.user_id},
+        { "$set": {'status': 'active'}}
+    )
+    if not result:
+        raise HTTPException(500)
+    return Response(status_code=200)
