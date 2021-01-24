@@ -80,7 +80,7 @@ def change_status(request: Request, token: AccessTokenPayload=Depends(authorize)
         raise HTTPException(404, 'Member not found')
     result = db.members.find_one_and_update(
         {'id': token.user_id},
-        { "$set": {'status': 'activ'}}
+        { "$set": {'status': 'active'}}
     )
     if not result:
         raise HTTPException(500)
