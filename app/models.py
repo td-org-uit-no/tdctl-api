@@ -27,6 +27,11 @@ class MemberInput(BaseModel):
     graduated: bool
     phone: Optional[str]
 
+class MemberUpdate(BaseModel):
+    realName: Optional[str]
+    email: Optional[EmailStr]
+    classof: Optional[str]
+    phone: Optional[str]
 
 class MemberDB(BaseModel):
     id: UUID4
