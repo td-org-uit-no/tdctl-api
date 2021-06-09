@@ -3,7 +3,7 @@ from werkzeug.security import generate_password_hash
 from typing import List
 from uuid import uuid4
 
-from ..models import Member, MemberDB, MemberInput, AccessTokenPayload
+from ..models import Member, MemberDB, MemberInput, MemberUpdate, AccessTokenPayload
 from ..auth_helpers import authorize, role_required
 from ..db import get_database
 from ..util import validate_password, passwordError
@@ -85,3 +85,29 @@ def change_status(request: Request, token: AccessTokenPayload=Depends(authorize)
     if not result:
         raise HTTPException(500)
     return Response(status_code=200)
+
+@ router.put('/')
+def update_member(request: Request, memberData: MemberUpdate, token: AccessTokenPayload=Depends(authorize)):
+    db=get_database(request)
+    user=db.members.find_one({'id': token.user_id})
+    if not user:
+        raise HTTPException(404, "User not found")
+
+    values = memberData.dict()
+    updateInfo = {} 
+    for key in values:
+        if values[key]:
+            updateInfo[key] = values[key]
+
+    if not updateInfo:
+        return HTTPException(400)
+
+    result = db.members.find_one_and_update(
+        {'id': token.user_id},
+        {"$set": updateInfo})
+
+    if not result:
+        raise HTTPException(500)
+
+    return Response(status_code=201)
+
