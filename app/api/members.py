@@ -118,19 +118,32 @@ def confirm_email(request: Request, code: str):
 @router.post('/confirm/code/{email}')
 def generate_new_confirmation_code(request: Request, email: str): 
     '''Used to generate a new confirmation code for a member'''
-    NonExistentUserError = HTTPException(
-        404, "A user with the given e-mail address does not exist"
+    NonExistentMemberError = HTTPException(
+        404, "A member with the given e-mail address does not exist"
     )
+    MemberAlreadyConfirmedError = HTTPException(
+        400, 'Member is already confirmed'
+    )
+
     db = get_database(request)
     member = db.members.find_one({'email': email})
 
     if not member:
         # Member assoiciated with the email was not found
-        raise NonExistentUserError
+        raise NonExistentMemberError
+
+    if member['role'] is not 'unconfirmed':
+        # Member associated with the email is already activated
+        raise MemberAlreadyConfirmedError
+
+
+    # delete existing activation code associated with member
+    db.confirmations.find_one_and_delete({'id': member['id']})
     
     newConfirmationCode = uuid4().hex
-
-    result = db.members.find_one_and_update({'id': member['user_id']}, {'$set': {'confirmationCode': newConfirmationCode}})
+    result = db.confirmations.insert_one(
+        {"confirmationCode": newConfirmationCode, 'user_id': member['id']}
+    )
 
     if not result:
         # An error occured when updating the user with the confirmation code
