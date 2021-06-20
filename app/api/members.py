@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Response, Request, HTTPException, Depends
 from werkzeug.security import generate_password_hash
+from pymongo import ReturnDocument
 from typing import List
 from uuid import uuid4
 
@@ -9,6 +10,7 @@ from ..db import get_database
 from ..util import validate_password, passwordError
 
 router = APIRouter()
+
 
 @router.post('/')
 def create_new_member(request: Request, newMember: MemberInput):
@@ -39,7 +41,7 @@ def create_new_member(request: Request, newMember: MemberInput):
     db.members.insert_one(member)
 
     # Create confirmation code
-    confirmationCode=uuid4().hex
+    confirmationCode = uuid4().hex
     db.confirmations.insert_one(
         {"confirmationCode": confirmationCode, 'user_id': member['id']}
     )
@@ -47,54 +49,82 @@ def create_new_member(request: Request, newMember: MemberInput):
 
 
 @ router.get('/')
-def get_member_associated_with_token(request: Request, token: AccessTokenPayload=Depends(authorize)):
-    db=get_database(request)
-    currentMember=db.members.find_one({'id': token.user_id})
+def get_member_associated_with_token(request: Request, token: AccessTokenPayload = Depends(authorize)):
+    db = get_database(request)
+    currentMember = db.members.find_one({'id': token.user_id})
     if not currentMember:
         raise HTTPException(404, "User could not be found")
     return Member.parse_obj(currentMember)
 
 
 @ router.get('/{id}', response_model=Member, responses={404: {"model": None}})
-def get_member_by_id(request: Request, id: str, token: dict=Depends(authorize)):
+def get_member_by_id(request: Request, id: str, token: dict = Depends(authorize)):
     '''Returns a user object associated with id passed in'''
-    db=get_database(request)
-    member=db.members.find_one({'id': id})
+    db = get_database(request)
+    member = db.members.find_one({'id': id})
     if not member:
         raise HTTPException(404, 'Member not found')
     return Member.parse_obj(member)
 
 
 @ router.get("s/", response_model=List[Member])
-def get_all_members(request: Request, token: AccessTokenPayload=Depends(authorize)):
+def get_all_members(request: Request, token: AccessTokenPayload = Depends(authorize)):
     '''List all members objects'''
     role_required(token, 'admin')
-    db=get_database(request)
+    db = get_database(request)
     return [Member.parse_obj(m) for m in db.members.find()]
 
+
 @ router.post('/activate')
-def change_status(request: Request, token: AccessTokenPayload=Depends(authorize)):
-    db=get_database(request)
+def change_status(request: Request, token: AccessTokenPayload = Depends(authorize)):
+    '''Sets the member status to active'''
+    db = get_database(request)
     member = db.members.find_one({'id': token.user_id})
     if not member:
         raise HTTPException(404, 'Member not found')
     result = db.members.find_one_and_update(
         {'id': token.user_id},
-        { "$set": {'status': 'active'}}
+        {"$set": {'status': 'active'}}
     )
     if not result:
         raise HTTPException(500)
     return Response(status_code=200)
 
+
+@router.post('/confirm/{code}')
+def confirm_email(request: Request, code: str):
+    '''Used to confirm the members e-mail address through activation code'''
+    NotMatchedError = HTTPException(
+        404, "Confirmation token could not be matched")
+    db = get_database(request)
+    validated = db.confirmations.find_one_and_delete(
+        {'confirmationCode': code})
+    if not validated:
+        raise NotMatchedError
+
+    user = db.members.find_one_and_update(
+        {'id': validated['user_id']},
+        {"$set":
+         {'role': 'member',
+          'status': 'active'}
+         },
+        return_document=ReturnDocument.AFTER)
+    if not user:
+        # User associated with confirmation token does not exist.
+        raise NotMatchedError
+
+    return Response(status_code=200)
+
+
 @ router.put('/')
-def update_member(request: Request, memberData: MemberUpdate, token: AccessTokenPayload=Depends(authorize)):
-    db=get_database(request)
-    user=db.members.find_one({'id': token.user_id})
+def update_member(request: Request, memberData: MemberUpdate, token: AccessTokenPayload = Depends(authorize)):
+    db = get_database(request)
+    user = db.members.find_one({'id': token.user_id})
     if not user:
         raise HTTPException(404, "User not found")
 
     values = memberData.dict()
-    updateInfo = {} 
+    updateInfo = {}
     for key in values:
         if values[key]:
             updateInfo[key] = values[key]
@@ -110,4 +140,3 @@ def update_member(request: Request, memberData: MemberUpdate, token: AccessToken
         raise HTTPException(500)
 
     return Response(status_code=201)
-
