@@ -48,7 +48,7 @@ def create_new_member(request: Request, newMember: MemberInput):
     return confirmationCode
 
 
-@ router.get('/')
+@router.get('/')
 def get_member_associated_with_token(request: Request, token: AccessTokenPayload = Depends(authorize)):
     db = get_database(request)
     currentMember = db.members.find_one({'id': token.user_id})
@@ -57,7 +57,7 @@ def get_member_associated_with_token(request: Request, token: AccessTokenPayload
     return Member.parse_obj(currentMember)
 
 
-@ router.get('/{id}', response_model=Member, responses={404: {"model": None}})
+@router.get('/{id}', response_model=Member, responses={404: {"model": None}})
 def get_member_by_id(request: Request, id: str, token: dict = Depends(authorize)):
     '''Returns a user object associated with id passed in'''
     db = get_database(request)
@@ -67,7 +67,7 @@ def get_member_by_id(request: Request, id: str, token: dict = Depends(authorize)
     return Member.parse_obj(member)
 
 
-@ router.get("s/", response_model=List[Member])
+@router.get("s/", response_model=List[Member])
 def get_all_members(request: Request, token: AccessTokenPayload = Depends(authorize)):
     '''List all members objects'''
     role_required(token, 'admin')
@@ -75,7 +75,7 @@ def get_all_members(request: Request, token: AccessTokenPayload = Depends(author
     return [Member.parse_obj(m) for m in db.members.find()]
 
 
-@ router.post('/activate')
+@router.post('/activate')
 def change_status(request: Request, token: AccessTokenPayload = Depends(authorize)):
     '''Sets the member status to active'''
     db = get_database(request)
@@ -115,8 +115,31 @@ def confirm_email(request: Request, code: str):
 
     return Response(status_code=200)
 
+@router.post('/confirm/code/{email}')
+def generate_new_confirmation_code(request: Request, email: str): 
+    '''Used to generate a new confirmation code for a member'''
+    NonExistentUserError = HTTPException(
+        404, "A user with the given e-mail address does not exist"
+    )
+    db = get_database(request)
+    member = db.members.find_one({'email': email})
 
-@ router.put('/')
+    if not member:
+        # Member assoiciated with the email was not found
+        raise NonExistentUserError
+    
+    newConfirmationCode = uuid4().hex
+
+    result = db.members.find_one_and_update({'id': member['user_id']}, {'$set': {'confirmationCode': newConfirmationCode}})
+
+    if not result:
+        # An error occured when updating the user with the confirmation code
+        raise HTTPException(500)
+    
+    return newConfirmationCode
+
+
+@router.put('/')
 def update_member(request: Request, memberData: MemberUpdate, token: AccessTokenPayload = Depends(authorize)):
     db = get_database(request)
     user = db.members.find_one({'id': token.user_id})
