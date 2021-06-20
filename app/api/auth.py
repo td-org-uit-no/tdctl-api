@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Request, Response, HTTPException, Depends
 from werkzeug.security import check_password_hash, generate_password_hash
-from pymongo import ReturnDocument
 
 from ..db import get_database
 from ..auth_helpers import create_token, create_refresh_token, decode_token, blacklist_token, decode, is_blacklisted, authorize
@@ -56,30 +55,6 @@ def renew(request: Request, refreshToken: RefreshToken):
     refreshToken = create_refresh_token(user, request.app.config)
     blacklist_token(tokenPayload, request.app.db)
     return {"accessToken": token.decode(), "refreshToken": refreshToken.decode()}
-
-
-@router.post('/confirm/{code}')
-def confirm_email(request: Request, code: str):
-    NotMatchedError = HTTPException(
-        404, "Confirmation token could not be matched")
-    db = get_database(request)
-    validated = db.confirmations.find_one_and_delete(
-        {'confirmationCode': code})
-    if not validated:
-        raise NotMatchedError
-
-    user = db.members.find_one_and_update(
-        {'id': validated['user_id']},
-        {"$set":
-         {'role': 'member',
-          'status': 'active'}
-         },
-        return_document=ReturnDocument.AFTER)
-    if not user:
-        # User associated with confirmation token does not exist.
-        raise NotMatchedError
-
-    return Response(status_code=200)
 
 
 @router.post('/password')
