@@ -2,6 +2,7 @@ from typing import Optional
 from pydantic import BaseModel, SecretStr, EmailStr, UUID4
 from uuid import uuid4
 from werkzeug.security import generate_password_hash
+from datetime import datetime
 
 
 class AccessTokenPayload(BaseModel):
@@ -17,7 +18,6 @@ class RefreshTokenPayload(BaseModel):
     iat: int
     jti: str
     user_id: str
-
 
 class MemberInput(BaseModel):
     realName: str
@@ -55,6 +55,11 @@ class Member(BaseModel):
     role: str
     status: str
 
+class EventDB(BaseModel):
+    title: str
+    description: Optional[str]
+    date: datetime
+    address: str
 
 class Tokens(BaseModel):
     accessToken: str
