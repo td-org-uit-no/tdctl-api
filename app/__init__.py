@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .config import config
 
-from .api import members, auth
+from .api import members, auth, events
 from .db import setup_db
 
 
@@ -11,10 +11,10 @@ def create_app():
 
     app = FastAPI(
         title='TDCTL-API',
-        version='0.1',
-        description='''TDCTL-database API.
+        version=0.1,
+        description='''TDCTL-database API. 
         Everything related to Tromsøstudentenes Dataforening''',
-        contact='td@list.uit.no',
+        contact={'name' : 'td', 'email' : 'td@list.uit.no'},
         docs_url="/",
     )
 
@@ -30,6 +30,7 @@ def create_app():
     # Routers
     app.include_router(members.router, prefix="/api/member", tags=['members'])
     app.include_router(auth.router, prefix="/api/auth", tags=['auth'])
+    app.include_router(events.router, prefix="/api/event", tags=['event'])
     
     # Fetch config object
     env = os.getenv('FLASK_APP_ENV', 'default')
