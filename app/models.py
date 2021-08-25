@@ -1,8 +1,9 @@
-from typing import Optional
-from pydantic import BaseModel, SecretStr, EmailStr, UUID4
+from typing import Optional, List
+from pydantic import BaseModel, SecretStr, EmailStr, UUID4, Field
 from uuid import uuid4
 from werkzeug.security import generate_password_hash
 from datetime import datetime
+from bson import ObjectId
 
 
 class AccessTokenPayload(BaseModel):
@@ -55,11 +56,31 @@ class Member(BaseModel):
     role: str
     status: str
 
-class EventDB(BaseModel):
+class CommentData(BaseModel):
+    comment: str
+
+class Comment(CommentData):
+    author: UUID4
+    created_at: datetime
+
+class PostData(BaseModel):
+    message: str
+
+class Post(PostData):
+    id: UUID4
+    author: UUID4
+    created_at: datetime
+    comments: List[Comment]
+
+class Event(BaseModel):
     title: str
     description: Optional[str]
     date: datetime
     address: str
+
+class EventDB(Event):
+    participants: List[Member]
+    posts: List[Post]
 
 class Tokens(BaseModel):
     accessToken: str

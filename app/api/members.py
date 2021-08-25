@@ -132,7 +132,7 @@ def generate_new_confirmation_code(request: Request, email: str):
         # Member assoiciated with the email was not found
         raise NonExistentMemberError
 
-    if member['role'] is not 'unconfirmed':
+    if member['role'] != 'unconfirmed':
         # Member associated with the email is already activated
         raise MemberAlreadyConfirmedError
 
