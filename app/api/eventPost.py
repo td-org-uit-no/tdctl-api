@@ -5,7 +5,7 @@ from ..models import Event, EventDB, AccessTokenPayload, Member
 from ..auth_helpers import authorize
 from ..db import get_database
 from ..models import PostData, Post, CommentData
-from .util import crud_get_event_by_id
+from .utils import crud_get_event_by_id
 from uuid import uuid4
 from bson import ObjectId
 

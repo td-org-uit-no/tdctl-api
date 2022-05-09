@@ -4,7 +4,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from ..db import get_database
 from ..auth_helpers import create_token, create_refresh_token, decode_token, blacklist_token, decode, is_blacklisted, authorize
 from ..models import Credentials, Tokens, MemberDB, RefreshToken, RefreshTokenPayload, AccessTokenPayload, ChangePasswordPayload
-from ..util import validate_password, passwordError
+from ..utils import validate_password, passwordError
 
 router = APIRouter()
 
