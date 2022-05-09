@@ -1,10 +1,41 @@
 [
     {
-        "_id": ObjectId("5c447528133f7e2fb1b2a148"),
-        "title": "Sunday Sprint",
-        "location": "Realfagbygget A036",
-        "starttime": ISODate("2019-01-20T11:00:00Z"),
-        "endtime": ISODate("2019-01-21T08:00:00Z"),
-        "description": "Vi jobber med diverse forefallende"
+        "eid": "8f559f0190ba48cb9cd68cd9475a99be",
+        "title": "Bedriftspresentasjon med Mnemonic",
+        "address": "Realfagbygget A036",
+        "date": "2023-05-20 16:30:00",
+        "duration": 2,
+        "price": 0,
+        "maxParticipants": 35,
+        "description": "Mnemonic inviterer til bedriftspresentasjon Tirsdag 1. mars kl 1615. Presentasjonen vil bestå av en case tilknyttet informasjonssikkerhet hvor vi skal se nærmere på en sikkerhetshendelse. \n Dette blir både spennende og lærerikt. Du trenger ingen konkrete forkunnskaper for å delta, bare en interesse for fagfeltet. Etter presentasjonen drar vi samlet fra universitetet ned til Graffi for en god middag og mingling",
+        "picturePath": "db/eventImages/622209b4aa36338143e70eef.png",
+        "participants": [],
+        "posts": []
+    },
+    {
+        "eid": "4392615fecd0491e9666566f04c51d9c",
+        "title": "Bedriftspresentasjon med Fink",
+        "address": "Realfagbygget A036",
+        "date": "2023-04-20 16:30:00",
+        "duration": 2,
+        "price": 0,
+        "maxParticipants": 25,
+        "description": "Fink AS er et konsulentselskap fra Oslo, bestående av både designere og utviklere. Dem inviterer til foredrag om hva som møter dere i arbeidslivet som nyutdannet teknologer. Det blir snacks, drikke, gave til alle og en fin premie for beste spørsmål. Vel møtt!",
+        "picturePath": "db/eventImages/622f3619e459c03f236ebd96.png",
+        "participants": [],
+        "posts": []
+    },
+    {
+        "eid": "b70dcae276834ca78f457e47d1036cfb",
+        "title": "React workshop med Bekk",
+        "address": "Realfagbygget A036",
+        "date": "2023-04-25 16:30:00",
+        "duration": 2,
+        "price": 0,
+        "maxParticipants": 30,
+        "description": "Har du lyst til å lære deg React? \n React er et svært populært og utbredt JavaScript bibliotek for å lage brukergrensesnitt. React blir brukt fra små nettsider til svære apper. I Bekk finnes det mange React-entusiaster, og tirsdag 31. august har vi gleden av å invitere deg på Workshop med oss. \n Arrangementet passer nybegynner som viderekommen, og Bekk stiller med egne veiledere som kan hjelpe deg underveis. Det blir mat servert under workshopen og så drar vi ut på restaurant og spiser sammen etterpå \n Dette er en workshop for deg som vil lære React fra bunnen av. Workshopen består av et sett med oppgaver, med gode forklaringer etter hver oppgave. Når du har jobbet deg gjennom denne workshopen vil du ha en god, grunnleggende forståelse av hvordan React fungerer, og hvordan du kan lage webapper på null komma niks! Workshopen er åpent for alle studenter på informatikk, men litt erfaring med programmering hjelper",
+        "picturePath": "db/eventImages/622f3782e459c03f236ebd97.png",
+        "participants": [],
+        "posts": []
     }
 ]
