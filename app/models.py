@@ -72,11 +72,28 @@ class Post(PostData):
     created_at: datetime
     comments: List[Comment]
 
-class Event(BaseModel):
+class EventInput(BaseModel):
     title: str
-    description: Optional[str]
     date: datetime
     address: str
+    price: int
+    description: str # short info about the event
+    duration: Optional[int] # in hours
+    extraInformation: Optional[str] # more detailed practical information
+    maxParticipants: Optional[int]
+    romNumber: Optional[str]
+    building: Optional[str]
+    picturePath: Optional[str]
+
+class Event(EventInput):
+    eid: UUID4
+
+class EventUpdate(BaseModel):
+    title: Optional[str]
+    date: Optional[datetime]
+    address: Optional[str]
+    description: Optional[str]
+    maxParticipants: Optional[int]
 
 class EventDB(Event):
     participants: List[Member]
