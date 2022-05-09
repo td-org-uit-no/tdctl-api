@@ -27,7 +27,7 @@ def authorize(request: Request, token: HTTPAuthorizationCredentials = Depends(se
 
 
 def role_required(accessToken: AccessTokenPayload, role: str):
-    if "role" not in accessToken or accessToken.role is not role:
+    if accessToken.role != role:
         raise HTTPException(403, 'No privileges to access this resource')
 
 
