@@ -1,6 +1,5 @@
 [
   {
-    "_id": BinData(3, "SLgi3D4+Sd6bXJkZKST+RQ=="),
     "realName": "Tromsostudentenes Dataforening",
     "email": "td@list.uit.no",
     "password": "pbkdf2:sha256:150000$2x6IAyAh$cc4a6f1f21532fe4e0be6838d43f372b18b09549355529d4dc28b108291387bd",
@@ -11,7 +10,6 @@
     "role": "admin"
   },
   {
-    "_id": BinData(3, "P1/9c8axTYWuRmmdj033gw=="),
     "realName": "First Lastname",
     "email": "mail@mail.com",
     "password": "pbkdf2:sha256:150000$aMC4YqMv$40a69ba226881bc5646b5e4763e9e7e148257f6b5a508d92d00982442238cb65",
@@ -20,5 +18,16 @@
     "phone": "",
     "status": "INACTIVE",
     "role": "member"
+  },
+  {
+      "realName": "Admin Adminsen",
+      "email" : "dev_admin@admin.com",
+      "password": "pbkdf2:sha256:260000$zzQIz4Rol1AZJGBx$3f89dcb6a5a3f822ac82092ce4a850fee23901230605d4f117d955eb7005ce5d",
+      "classof": "2018",
+      "graduated": false,
+      "phone": "12345678",
+      "status": "ACTIVE",
+      "role": "admin"
   }
 ]
+
