@@ -2,12 +2,12 @@ from fastapi import APIRouter, Response, Request, HTTPException, Depends
 from werkzeug.security import generate_password_hash
 from pymongo import ReturnDocument
 from typing import List
-from uuid import uuid4
+from uuid import uuid4, UUID
 
-from ..models import Member, MemberDB, MemberInput, MemberUpdate, AccessTokenPayload
+from ..models import Member, MemberInput, MemberUpdate, AccessTokenPayload
 from ..auth_helpers import authorize, role_required
 from ..db import get_database
-from ..util import validate_password, passwordError
+from ..utils import validate_password, passwordError
 
 router = APIRouter()
 
@@ -23,14 +23,14 @@ def create_new_member(request: Request, newMember: MemberInput):
     exists = db.members.find_one({'email': newMember.email.lower()})
     if exists:
         raise HTTPException(409, 'E-mail is already in use.')
-
     if not validate_password(newMember.password):
         raise HTTPException(400, passwordError)
-
+    pwd = generate_password_hash(newMember.password)
+    uid = uuid4().hex
     additionalFields = {
-        'id': uuid4().hex,  # Generate ID
+        'id': uid,
         'email': newMember.email.lower(),  # Lowercase e-mail
-        'password': generate_password_hash(newMember.password),
+        'password': pwd,
         'role': 'unconfirmed',
         'status': 'inactive',
     }
@@ -61,7 +61,8 @@ def get_member_associated_with_token(request: Request, token: AccessTokenPayload
 def get_member_by_id(request: Request, id: str, token: dict = Depends(authorize)):
     '''Returns a user object associated with id passed in'''
     db = get_database(request)
-    member = db.members.find_one({'id': id})
+    # removes dashes
+    member = db.members.find_one({'id': UUID(id).hex})
     if not member:
         raise HTTPException(404, 'Member not found')
     return Member.parse_obj(member)
