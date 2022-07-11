@@ -18,6 +18,9 @@ uvicorn = "==0.12.2"
 email-validator = "1.1.1"
 python-multipart = "0.0.5"
 aiofiles = "0.8.0"
+pytest = "7.1.2"
+#fastapi->testclient dependency
+requests="2.27.1"
 
 [requires]
 python_version = "3.8"
