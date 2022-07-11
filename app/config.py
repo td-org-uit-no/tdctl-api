@@ -27,9 +27,17 @@ class ProductionConfig(Config):
     MONGO_DBNAME = "tdctl"
     MONGO_URI = "mongodb://%s:%s/%s" % (MONGO_HOST, MONGO_PORT, MONGO_DBNAME)
 
+class TestConfig(Config):
+    SECRET_KEY = "test"
+    ENV = 'test'
+    MONGO_HOST = "127.0.0.1"
+    MONGO_PORT = 27018
+    MONGO_DBNAME = "test"
+    MONGO_URI = "mongodb://%s:%s/%s" % (MONGO_HOST, MONGO_PORT, MONGO_DBNAME)
 
 config = {
     'development': DevelopmentConfig,
     'production': ProductionConfig,
+    'test' : TestConfig,
     'default': DevelopmentConfig
 }
