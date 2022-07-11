@@ -8,7 +8,7 @@ from starlette.responses import FileResponse
 from uuid import uuid4, UUID
 
 from app.utils.validation import get_file_type, validate_image_file_type
-from ..db import get_database
+from ..db import get_database, get_image_path
 from bson.objectid import ObjectId
 from ..auth_helpers import authorize, role_required
 from ..models import Event, EventDB, AccessTokenPayload, EventInput, EventUpdate, Member
@@ -18,6 +18,7 @@ router = APIRouter()
 
 @router.post('/')
 def create_event(request: Request, newEvent: EventInput, token: AccessTokenPayload = Depends(authorize)):
+    role_required(token, "admin")
     db = get_database(request)
 
     # TODO better format handling and date date-time handling
@@ -58,42 +59,45 @@ def get_upcoming_events(request: Request):
         date_str = now.strftime("%Y-%m-%d %H:%M:%S")
         date = datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S")
     except ValueError:
-        raise HTTPException(400, "Invalid date format")
+        raise HTTPException(500, "Problem handling date format")
 
     coming_events = db.events.find({ 'date': {'$gt': date} })
 
     return [ Event.parse_obj(event) for event in coming_events ]
 
 @router.get('/{eid}/image')
-def get_event_picture(request: Request, eid:str):
-    file_name = f"db/eventImages/{UUID(eid).hex}.png"
+def get_event_picture(request: Request, eid:UUID):
+    image_path = get_image_path(request)
+    file_name = f"{image_path}/{eid.hex}.png"
     if not os.path.exists(file_name):
         raise HTTPException(404, "picture not found")
     return FileResponse(file_name)
 
 @router.post('/{eid}/image')
-def upload_event_picture(request: Request, eid: str , image: UploadFile = File(...)):
+def upload_event_picture(request: Request, eid:UUID , image: UploadFile = File(...), token: AccessTokenPayload = Depends(authorize)):
+    role_required(token, "admin")
     if not validate_image_file_type(image.content_type):
         raise HTTPException(400, "Unsupported file type")
 
     db = get_database(request)
+    image_path = get_image_path(request)
 
-    baseDir = "db/eventImages"
-    if not os.path.isdir(baseDir):
-        os.mkdir(baseDir)
+    # baseDir = "db/eventImages"
+    if not os.path.isdir(image_path):
+        os.mkdir(image_path)
     
     file_type = get_file_type(image.content_type)
-    picturePath = f"{baseDir}/{eid}.png"
+    picturePath = f"{image_path}/{eid}.png"
 
     with open(picturePath, "wb") as buffer:
         shutil.copyfileobj(image.file, buffer)
 
-    db.events.find_one_and_update({'eid': UUID(eid).hex}, {"$set": {"imagePath": picturePath}})
+    db.events.find_one_and_update({'eid': eid.hex}, {"$set": {"imagePath": picturePath}})
 
     return Response(status_code=200)
 
 @router.put('/{eid}')
-def update_event(request: Request, eid:str, eventUpdate: EventUpdate, AccessTokenPayload = Depends(authorize)):
+def update_event(request: Request, eid:UUID, eventUpdate: EventUpdate, AccessTokenPayload = Depends(authorize)):
     role_required(AccessTokenPayload, "admin")
     db = get_database(request)
 
@@ -108,21 +112,25 @@ def update_event(request: Request, eid:str, eventUpdate: EventUpdate, AccessToke
         if event_date < datetime.now():
             raise HTTPException(400, "Invalid date")
 
-    db.events.find_one_and_update(
-        {'eid': UUID(eid).hex},
+    result = db.events.find_one_and_update(
+        {'eid': eid.hex},
         {"$set": values})
+
+    if result == None:
+        raise HTTPException(400, "No such event with this eid")
+
 
     return Response(status_code=200)
 
 @router.get('/{eid}')
-def get_event_by_id(request: Request, eid:str):
+def get_event_by_id(request: Request, eid:UUID):
     db = get_database(request)
 
     event = crud_get_event_by_id(db, eid)
     return EventDB.parse_obj(event)
 
 @router.get('/{eid}/participants')
-def get_event_participants(request: Request, eid:str):
+def get_event_participants(request: Request, eid:UUID):
     db = get_database(request)
 
     event = crud_get_event_by_id(db, eid)
@@ -131,7 +139,7 @@ def get_event_participants(request: Request, eid:str):
 
 # 400 if already joined?
 @router.post('/{eid}/join')
-def join_event(request: Request, eid:str, token: AccessTokenPayload = Depends(authorize)):
+def join_event(request: Request, eid:UUID, token: AccessTokenPayload = Depends(authorize)):
     db = get_database(request)
     
     event = crud_get_event_by_id(db, eid)
@@ -145,12 +153,12 @@ def join_event(request: Request, eid:str, token: AccessTokenPayload = Depends(au
         if len(event['participants']) >= event['maxParticipants']:
             raise HTTPException(423, "Event full")
 
-    db.events.update({'eid' : event['eid']}, { "$addToSet": { "participants": member } })
+    db.events.update_one({'eid' : event['eid']}, { "$addToSet": { "participants": member } })
 
     return Response(status_code=200)
 
 @router.post('/{eid}/leave')
-def leave_event(request: Request, eid:str, token: AccessTokenPayload = Depends(authorize)):
+def leave_event(request: Request, eid:UUID, token: AccessTokenPayload = Depends(authorize)):
     db = get_database(request)
 
     event = crud_get_event_by_id(db, eid)
@@ -160,7 +168,7 @@ def leave_event(request: Request, eid:str, token: AccessTokenPayload = Depends(a
     if not member:
         raise HTTPException(400, "User could not be found")
 
-    user = db.events.find_one({"eid" : UUID(eid).hex}, {"participants" : {"$elemMatch" : {"id": token.user_id}}})
+    user = db.events.find_one({"eid" : eid.hex}, {"participants" : {"$elemMatch" : {"id": token.user_id}}})
 
     try : 
         user['participants'][0]
@@ -172,15 +180,15 @@ def leave_event(request: Request, eid:str, token: AccessTokenPayload = Depends(a
     return Response(status_code=200)
 
 @router.get('/{eid}/joined')
-def is_joined_event(request: Request, eid:str, token: AccessTokenPayload = Depends(authorize)):
+def is_joined_event(request: Request, eid:UUID, token: AccessTokenPayload = Depends(authorize)):
     db = get_database(request)
 
-    event = crud_get_event_by_id(db, eid)
+    crud_get_event_by_id(db, eid)
     
-    user = db.events.find_one({"eid" : UUID(eid).hex}, {"participants" : {"$elemMatch" : {"id": token.user_id}}})
+    user = db.events.find_one({"eid" : eid.hex}, {"participants" : {"$elemMatch" : {"id": token.user_id}}})
 
     try : 
-        isJoined = user['participants'][0]
+        user['participants'][0]
         return {'joined' : True}
     except KeyError:
         return {'joined' : False}

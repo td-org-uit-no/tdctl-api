@@ -1,3 +1,4 @@
+from app import config
 from pymongo import MongoClient, database
 from fastapi import Request
 
@@ -5,7 +6,17 @@ from fastapi import Request
 def get_database(request: Request) -> database:
     return request.app.db
 
+def get_image_path(request: Request) -> str:
+    return request.app.image_path
 
 def setup_db(app):
     app.db = MongoClient(app.config.MONGO_URI)[app.config.MONGO_DBNAME]
-    db = app.db
+    if app.config.MONGO_DBNAME == 'test':
+        app.image_path = 'db/testEventImages'
+        return
+    app.image_path = 'db/eventImages/'
+
+def get_test_db():
+    test_config = config['test']
+    return MongoClient(test_config.MONGO_URI)[test_config.MONGO_DBNAME]
+
