@@ -9,10 +9,9 @@ import shutil
 
 # TODO fix imports so that the file can be added into the db folder
 base_dir = "db/seeds"
-def seed_members(db):
-    member_seed = f"{base_dir}/members.json"
 
-    with open(member_seed, "r") as f:
+def seed_members(db, seed_path):
+    with open(seed_path, "r") as f:
         members = json.load(f)
     for member in members:
         db_member = db.members.find_one({'email': member['email'].lower()})
@@ -21,11 +20,9 @@ def seed_members(db):
         member["id"] = uuid4().hex
     db["members"].insert_many(members)
 
-def seed_events(db):
-    event_seed = f"{base_dir}/events.json"
-    event_images = f"{base_dir}/seedImages/"
+def seed_events(db, seed_path):
 
-    with open(event_seed, "r") as f:
+    with open(seed_path, "r") as f:
         events = json.load(f)
 
     for event in events:
@@ -36,7 +33,15 @@ def seed_events(db):
         for p in db["members"].find({}):
             event["participants"].append(p)
 
-        shutil.copy(f'{event_images}/{event["eid"]}.png', f'db/eventImages/')
+        img_dst = "db/eventImages/"
+        if db.name == 'test':
+            img_dst = "db/testEventImages"
+
+        try : 
+            shutil.copy(f'{base_dir}/seedImages/{event["eid"]}.png', img_dst)
+        except FileNotFoundError:
+            pass
+
         event["date"] = datetime.strptime(event['date'], "%Y-%m-%d %H:%M:%S")
         db["events"].insert_one(event)
 
@@ -47,5 +52,5 @@ def get_db():
 
 if __name__ == "__main__":
     db = get_db()
-    seed_members(db)
-    seed_events(db)
+    seed_members(db, f"{base_dir}/members.json")
+    seed_events(db, f"{base_dir}/events.json")

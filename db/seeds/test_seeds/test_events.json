@@ -1,0 +1,26 @@
+[
+    {
+        "eid": "b6714a37d23f4263a130301551a66034",
+        "title": "Test arrangement",
+        "address": "Realfagbygget A036",
+        "date": "2021-05-24 16:30:00",
+        "duration": 2,
+        "price": 0,
+        "maxParticipants": 35,
+        "description": "Test",
+        "participants": [],
+        "posts": []
+    },
+    {
+        "eid": "b6714a37d23f4263a130301551a66033",
+        "title": "Old event",
+        "address": "Realfagbygget A036",
+        "date": "2020-01-01 18:00:00",
+        "duration": 2,
+        "price": 0,
+        "maxParticipants": 35,
+        "description": "An old event",
+        "participants": [],
+        "posts": []
+    }
+]
