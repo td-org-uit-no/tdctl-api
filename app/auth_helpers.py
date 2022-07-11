@@ -56,7 +56,7 @@ def create_refresh_token(user: MemberDB, config: Config):
 def decode_token(token: bytes, config: Config) -> dict:
     try:
         # Attempt to decode the token found in header
-        return decode(token.encode('utf-8'), config.SECRET_KEY)
+        return decode(token.encode('utf-8'), config.SECRET_KEY, algorithms=['HS256'])
     except DecodeError:
         # Missing segments
         raise HTTPException(401, 'Token has incorrect format.')
