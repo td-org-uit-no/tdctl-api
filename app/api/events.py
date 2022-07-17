@@ -79,20 +79,16 @@ def upload_event_picture(request: Request, eid:UUID , image: UploadFile = File(.
     if not validate_image_file_type(image.content_type):
         raise HTTPException(400, "Unsupported file type")
 
-    db = get_database(request)
     image_path = get_image_path(request)
 
     # baseDir = "db/eventImages"
     if not os.path.isdir(image_path):
         os.mkdir(image_path)
-    
-    file_type = get_file_type(image.content_type)
-    picturePath = f"{image_path}/{eid}.png"
+
+    picturePath = f"{image_path}/{eid.hex}.png"
 
     with open(picturePath, "wb") as buffer:
         shutil.copyfileobj(image.file, buffer)
-
-    db.events.find_one_and_update({'eid': eid.hex}, {"$set": {"imagePath": picturePath}})
 
     return Response(status_code=200)
 
@@ -118,7 +114,6 @@ def update_event(request: Request, eid:UUID, eventUpdate: EventUpdate, AccessTok
 
     if result == None:
         raise HTTPException(400, "No such event with this eid")
-
 
     return Response(status_code=200)
 
