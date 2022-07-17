@@ -49,9 +49,8 @@ def get_all_event_ids(request: Request):
 
     return [ str(event['eid']) for event in db.events.find() ]
 
-@router.get('/upcoming-events')
+@router.get('/upcoming')
 def get_upcoming_events(request: Request):
-    events = []
     db = get_database(request)
 
     now = datetime.now()
