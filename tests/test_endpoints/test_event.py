@@ -29,16 +29,17 @@ with open("db/seeds/test_seeds/test_members.json") as seed_file:
     test_members = json.load(seed_file)
 
 # makes sure we test on a uuid not existing
-non_existing_eid = uuid4().hex
+non_existing_eid = ""
 while non_existing_eid in open('db/seeds/test_seeds/test_events.json').read():
+    non_existing_eid = uuid4().hex
     continue
 
 def test_create_event(client):
-    response = client.post("api/event/", json=new_event)
+    response = client.post("/api/event/", json=new_event)
     assert response.status_code == 403
     access_token = client_login(client, regular_member["email"], regular_member["password"])
     headers = {"Authorization": f"Bearer {access_token}"}
-    response = client.post("api/event/", json=new_event, headers=headers)
+    response = client.post("/api/event/", json=new_event, headers=headers)
     assert response.status_code == 403
 
     access_token = client_login(client, admin_member["email"], admin_member["password"])
@@ -46,9 +47,9 @@ def test_create_event(client):
 
     #tests for date being in the past
     invalid_date_event = {**new_event, "date":"2022-01-01T00:00:00"}
-    response = client.post("api/event/", json=invalid_date_event, headers=headers)
+    response = client.post("/api/event/", json=invalid_date_event, headers=headers)
     assert response.status_code == 400
-    response = client.post("api/event/", json=new_event, headers=headers)
+    response = client.post("/api/event/", json=new_event, headers=headers)
     assert response.status_code == 200
     res_json = response.json()
     event = db.events.find_one({'eid': res_json["eid"]})
@@ -56,41 +57,41 @@ def test_create_event(client):
 
 def test_update_event(client):
     update_field = {"title": "new title"}
-    eid = "b6714a37d23f4263a130301551a66034"
-    response = client.put(f"api/event/{eid}", json=update_field)
+    eid = test_events[0]["eid"]
+    response = client.put(f"/api/event/{eid}", json=update_field)
     assert response.status_code == 403
 
     access_token = client_login(client, regular_member["email"], regular_member["password"])
     headers = {"Authorization": f"Bearer {access_token}"}
-    response = client.put(f"api/event/{eid}", json=update_field, headers=headers)
+    response = client.put(f"/api/event/{eid}", json=update_field, headers=headers)
     assert response.status_code == 403
 
     invalid_date = {"date": "2022-01-01T00:00:00"}
     access_token = client_login(client, admin_member["email"], admin_member["password"])
     headers = {"Authorization": f"Bearer {access_token}"}
-    response = client.put(f"api/event/{eid}", json=invalid_date, headers=headers)
+    response = client.put(f"/api/event/{eid}", json=invalid_date, headers=headers)
     assert response.status_code == 400
 
     non_existing_eid = "1"*32
-    response = client.put(f"api/event/{non_existing_eid}", json=update_field, headers=headers)
+    response = client.put(f"/api/event/{non_existing_eid}", json=update_field, headers=headers)
     assert response.status_code == 400
 
-    response = client.put(f"api/event/{eid}", json=update_field, headers=headers)
+    response = client.put(f"/api/event/{eid}", json=update_field, headers=headers)
     assert response.status_code == 200
     event = db.events.find_one({'eid': eid})
     assert event["title"] == update_field["title"]
 
 def test_get_all_event(client):
-    response = client.get("api/event/")
+    response = client.get("/api/event/")
     assert response.status_code == 200
     assert len(response.json()) ==  len(test_events)
 
 def test_get_upcoming_events(client):
     access_token = client_login(client, admin_member["email"], admin_member["password"])
     headers = {"Authorization": f"Bearer {access_token}"}
-    response = client.post("api/event/", json=new_event, headers=headers)
+    response = client.post("/api/event/", json=new_event, headers=headers)
     assert response.status_code == 200
-    response = client.get("api/upcoming-events/")
+    response = client.get("/api/upcoming/")
     assert len(response.json()) == 1
 
 def test_get_event_picture(client):
@@ -109,12 +110,12 @@ def test_upload_event_picture(client):
         "image": (f'{eid}.png', open(f'{img_path}', 'rb'), 'image/png'),
     }
 
-    response = client.post(f'api/event/{eid}/image', files=file)
+    response = client.post(f'/api/event/{eid}/image', files=file)
     assert response.status_code == 403
 
     access_token = client_login(client, admin_member["email"], admin_member["password"])
     headers = {"Authorization": f"Bearer {access_token}"}
-    response = client.post(f'api/event/{eid}/image', files=file, headers=headers)
+    response = client.post(f'/api/event/{eid}/image', files=file, headers=headers)
     assert response.status_code == 200
     
     # tests file type validation
@@ -125,52 +126,52 @@ def test_upload_event_picture(client):
     file = {
         "image": (f'{file_name}', open(file_name, 'rb'), 'text/plain'),
     }
-    response = client.post(f'api/event/{eid}/image', files=file, headers=headers)
+    response = client.post(f'/api/event/{eid}/image', files=file, headers=headers)
     assert response.status_code == 400
     os.remove(file_name)
 
 def test_get_event_by_id(client):
     eid = test_events[0]["eid"]
-    response = client.get(f'api/event/{non_existing_eid}')
+    response = client.get(f'/api/event/{non_existing_eid}')
     assert response.status_code == 404
-    response = client.get(f'api/event/{eid}')
+    response = client.get(f'/api/event/{eid}')
     assert response.status_code == 200
 
 def test_get_event_participants(client):
     eid = test_events[0]["eid"]
-    response = client.get(f'api/event/{non_existing_eid}/participants')
+    response = client.get(f'/api/event/{non_existing_eid}/participants')
     assert response.status_code == 404
-    response = client.get(f'api/event/{eid}/participants')
+    response = client.get(f'/api/event/{eid}/participants')
     res_json = response.json()
     assert response.status_code == 200
     assert len(res_json) == len(test_members)
     
 def test_join_event(client):
     eid = test_events[0]["eid"]
-    response = client.post(f'api/event/{eid}/join')
+    response = client.post(f'/api/event/{eid}/join')
     assert response.status_code == 403
 
     access_token = client_login(client, admin_member["email"], admin_member["password"])
     headers = {"Authorization": f"Bearer {access_token}"}
 
     # creates event with maxParticipants = 1
-    response = client.post("api/event/", json=new_event, headers=headers)
+    response = client.post("/api/event/", json=new_event, headers=headers)
     new_event_eid = response.json()["eid"]
     # creates new member for joining the event
     response = client.post("/api/member/", json=payload)
     assert response.status_code == 200
     # joins the event
-    response = client.post(f'api/event/{new_event_eid}/join', headers=headers)
+    response = client.post(f'/api/event/{new_event_eid}/join', headers=headers)
     assert response.status_code == 200
     # checks that event not allowing more than max participants
     access_token = client_login(client, payload["email"], payload["password"])
     headers = {"Authorization": f"Bearer {access_token}"}
-    response = client.post(f'api/event/{new_event_eid}/join', headers=headers)
+    response = client.post(f'/api/event/{new_event_eid}/join', headers=headers)
     assert response.status_code == 423
 
 def test_leave_event(client):
     eid = test_events[0]["eid"]
-    response = client.post(f'api/event/{eid}/leave')
+    response = client.post(f'/api/event/{eid}/leave')
     assert response.status_code == 403
 
     response = client.post("/api/member/", json=payload)
@@ -178,23 +179,23 @@ def test_leave_event(client):
 
     access_token = client_login(client, payload["email"], payload["password"])
     headers = {"Authorization": f"Bearer {access_token}"}
-    response = client.post(f'api/event/{non_existing_eid}/leave', headers=headers)
+    response = client.post(f'/api/event/{non_existing_eid}/leave', headers=headers)
     assert response.status_code == 404
 
-    response = client.post(f'api/event/{eid}/leave', headers=headers)
+    response = client.post(f'/api/event/{eid}/leave', headers=headers)
     assert response.status_code == 400
 
     # all seeding members are joined every event
     access_token = client_login(client, regular_member["email"], regular_member["password"])
     headers = {"Authorization": f"Bearer {access_token}"}
 
-    response = client.post(f'api/event/{eid}/leave', headers=headers)
+    response = client.post(f'/api/event/{eid}/leave', headers=headers)
     assert response.status_code == 200
 
 
 def test_is_joined_event(client):
     eid = test_events[0]["eid"]
-    response = client.get(f'api/event/{eid}/joined')
+    response = client.get(f'/api/event/{eid}/joined')
     assert response.status_code == 403
 
     response = client.post("/api/member/", json=payload)
@@ -202,17 +203,17 @@ def test_is_joined_event(client):
 
     access_token = client_login(client, payload["email"], payload["password"])
     headers = {"Authorization": f"Bearer {access_token}"}
-    response = client.get(f'api/event/{non_existing_eid}/joined', headers=headers)
+    response = client.get(f'/api/event/{non_existing_eid}/joined', headers=headers)
     assert response.status_code == 404
 
-    response = client.get(f'api/event/{eid}/joined', headers=headers)
+    response = client.get(f'/api/event/{eid}/joined', headers=headers)
     assert response.status_code == 200
     res = response.json()
     assert res["joined"] == False
     
     access_token = client_login(client, regular_member["email"], regular_member["password"])
     headers = {"Authorization": f"Bearer {access_token}"}
-    response = client.get(f'api/event/{eid}/joined', headers=headers)
+    response = client.get(f'/api/event/{eid}/joined', headers=headers)
     assert response.status_code == 200
     res = response.json()
     assert res["joined"] == True
