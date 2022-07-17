@@ -33,7 +33,6 @@ def client(app):
     if app.db.name != 'test':
         pytest.exit("Error: test using wrong database")
     mongo_client.drop_database('test')
-    # test_seed_path = "db/seeds/test_seeds/test_members.json"
     test_seed_path = "db/seeds/test_seeds"
 
     with TestClient(app) as client:
