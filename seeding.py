@@ -1,5 +1,5 @@
 from datetime import datetime
-from uuid import uuid4
+from uuid import UUID, uuid4
 from bson.objectid import ObjectId
 from pymongo import MongoClient
 from app import config
@@ -26,7 +26,8 @@ def seed_events(db, seed_path):
         events = json.load(f)
 
     for event in events:
-        db_event = db.events.find_one({'eid': event['eid']})
+        event["eid"] = UUID(event["eid"]).hex
+        db_event = db.events.find_one({'eid': event["eid"]})
         if db_event:
             continue
         event["participants"] = []
@@ -37,7 +38,7 @@ def seed_events(db, seed_path):
         if db.name == 'test':
             img_dst = "db/testEventImages"
 
-        try : 
+        try :
             shutil.copy(f'{base_dir}/seedImages/{event["eid"]}.png', img_dst)
         except FileNotFoundError:
             pass

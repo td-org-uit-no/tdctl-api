@@ -1,6 +1,6 @@
 [
     {
-        "eid": "b6714a37d23f4263a130301551a66034",
+        "eid": "b6714a37-d23f-4263-a130-301551a66034",
         "title": "Test arrangement",
         "address": "Realfagbygget A036",
         "date": "2021-05-24 16:30:00",
@@ -12,7 +12,7 @@
         "posts": []
     },
     {
-        "eid": "b6714a37d23f4263a130301551a66033",
+        "eid": "b6714a37-d23f-4263-a130-301551a66033",
         "title": "Old event",
         "address": "Realfagbygget A036",
         "date": "2020-01-01 18:00:00",
