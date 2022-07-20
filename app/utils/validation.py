@@ -1,3 +1,5 @@
+from fastapi import HTTPException, Request
+from uuid import UUID 
 import re
 
 passwordError = '''Password is not strong enough: Requires at least: 1 lower case character, 1 upper case character, 1 digit, 1 special character and a length of 8 character'''
@@ -20,3 +22,9 @@ def validate_password(password:str) -> bool:
 
     return True
 
+def validate_uuid(request: Request, eid: str):
+    try:
+        UUID(str(eid))
+        return eid
+    except ValueError:
+        raise HTTPException(400, "UUID is not formatted correctly")
