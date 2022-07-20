@@ -5,7 +5,7 @@ from ..models import Event, EventDB, AccessTokenPayload, Member
 from ..auth_helpers import authorize
 from ..db import get_database
 from ..models import PostData, Post, CommentData
-from .utils import crud_get_event_by_id
+from .utils import get_event_or_404
 from uuid import uuid4
 from bson import ObjectId
 
@@ -14,7 +14,7 @@ router = APIRouter()
 def create_event_post(request: Request, eid: str, newPost: PostData, token: AccessTokenPayload = Depends(authorize)):
     db = get_database(request)
     
-    event = crud_get_event_by_id(db, eid)
+    event = get_event_or_404(db, eid)
 
     member = db.members.find_one({'id': token.user_id})
     if not member:
@@ -44,7 +44,7 @@ def create_event_post(request: Request, eid: str, newPost: PostData, token: Acce
 def get_event_posts(request: Request, eid:str, token: AccessTokenPayload = Depends(authorize)):
     db = get_database(request)
 
-    event = crud_get_event_by_id(db, eid)
+    event = get_event_or_404(db, eid)
     # return event['posts']
     return [Post.parse_obj(post) for post in event['posts']]
 
@@ -52,7 +52,7 @@ def get_event_posts(request: Request, eid:str, token: AccessTokenPayload = Depen
 def comment_event_post(request: Request, eid: str, post_id: str, newComment: CommentData, token: AccessTokenPayload=Depends(authorize)):
     db = get_database(request)
 
-    event = crud_get_event_by_id(db, eid)
+    event = get_event_or_404(db, eid)
 
     timestamp = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
     

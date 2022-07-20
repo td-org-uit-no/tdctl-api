@@ -7,12 +7,12 @@ from fastapi.param_functions import File
 from starlette.responses import FileResponse
 from uuid import uuid4, UUID
 
-from app.utils.validation import get_file_type, validate_image_file_type
+from app.utils.validation import get_file_type, validate_image_file_type, validate_uuid
 from ..db import get_database, get_image_path
 from bson.objectid import ObjectId
 from ..auth_helpers import authorize, role_required
 from ..models import Event, EventDB, AccessTokenPayload, EventInput, EventUpdate, Member
-from .utils import crud_get_event_by_id
+from .utils import get_event_or_404
 
 router = APIRouter()
 
@@ -65,16 +65,17 @@ def get_upcoming_events(request: Request):
 
     return [ Event.parse_obj(event) for event in coming_events ]
 
-@router.get('/{eid}/image')
-def get_event_picture(request: Request, eid:UUID):
+# custom uuid validation as eid: UUID will not allow users to copy eids into swagger as they are not formatted correctly
+@router.get('/{eid}/image', dependencies=[Depends(validate_uuid)])
+def get_event_picture(request: Request, eid:str):
     image_path = get_image_path(request)
-    file_name = f"{image_path}/{eid.hex}.png"
+    file_name = f"{image_path}/{UUID(eid).hex}.png"
     if not os.path.exists(file_name):
         raise HTTPException(404, "picture not found")
     return FileResponse(file_name)
 
-@router.post('/{eid}/image')
-def upload_event_picture(request: Request, eid:UUID , image: UploadFile = File(...), token: AccessTokenPayload = Depends(authorize)):
+@router.post('/{eid}/image', dependencies=[Depends(validate_uuid)])
+def upload_event_picture(request: Request, eid:str, image: UploadFile = File(...), token: AccessTokenPayload = Depends(authorize)):
     role_required(token, "admin")
     if not validate_image_file_type(image.content_type):
         raise HTTPException(400, "Unsupported file type")
@@ -85,15 +86,15 @@ def upload_event_picture(request: Request, eid:UUID , image: UploadFile = File(.
     if not os.path.isdir(image_path):
         os.mkdir(image_path)
 
-    picturePath = f"{image_path}/{eid.hex}.png"
+    picturePath = f"{image_path}/{UUID(eid).hex}.png"
 
     with open(picturePath, "wb") as buffer:
         shutil.copyfileobj(image.file, buffer)
 
     return Response(status_code=200)
 
-@router.put('/{eid}')
-def update_event(request: Request, eid:UUID, eventUpdate: EventUpdate, AccessTokenPayload = Depends(authorize)):
+@router.put('/{eid}', dependencies=[Depends(validate_uuid)])
+def update_event(request: Request, eid:str, eventUpdate: EventUpdate, AccessTokenPayload = Depends(authorize)):
     role_required(AccessTokenPayload, "admin")
     db = get_database(request)
 
@@ -109,35 +110,35 @@ def update_event(request: Request, eid:UUID, eventUpdate: EventUpdate, AccessTok
             raise HTTPException(400, "Invalid date")
 
     result = db.events.find_one_and_update(
-        {'eid': eid.hex},
+        {'eid': UUID(eid).hex},
         {"$set": values})
 
     if result == None:
-        raise HTTPException(400, "No such event with this eid")
+        raise HTTPException(404, "No such event with this eid")
 
     return Response(status_code=200)
 
-@router.get('/{eid}')
-def get_event_by_id(request: Request, eid:UUID):
+@router.get('/{eid}', dependencies=[Depends(validate_uuid)])
+def get_event_by_id(request: Request, eid:str):
     db = get_database(request)
 
-    event = crud_get_event_by_id(db, eid)
+    event = get_event_or_404(db, eid)
     return EventDB.parse_obj(event)
 
-@router.get('/{eid}/participants')
-def get_event_participants(request: Request, eid:UUID):
+@router.get('/{eid}/participants', dependencies=[Depends(validate_uuid)])
+def get_event_participants(request: Request, eid:str):
     db = get_database(request)
 
-    event = crud_get_event_by_id(db, eid)
+    event = get_event_or_404(db, eid)
 
     return [{'id' : p['id'], 'name': p['realName']} for p in event['participants']]
 
 # 400 if already joined?
-@router.post('/{eid}/join')
-def join_event(request: Request, eid:UUID, token: AccessTokenPayload = Depends(authorize)):
+@router.post('/{eid}/join', dependencies=[Depends(validate_uuid)])
+def join_event(request: Request, eid:str, token: AccessTokenPayload = Depends(authorize)):
     db = get_database(request)
     
-    event = crud_get_event_by_id(db, eid)
+    event = get_event_or_404(db, eid)
 
     member = db.members.find_one({'id': token.user_id})
 
@@ -152,18 +153,18 @@ def join_event(request: Request, eid:UUID, token: AccessTokenPayload = Depends(a
 
     return Response(status_code=200)
 
-@router.post('/{eid}/leave')
-def leave_event(request: Request, eid:UUID, token: AccessTokenPayload = Depends(authorize)):
+@router.post('/{eid}/leave', dependencies=[Depends(validate_uuid)])
+def leave_event(request: Request, eid:str, token: AccessTokenPayload = Depends(authorize)):
     db = get_database(request)
 
-    event = crud_get_event_by_id(db, eid)
+    event = get_event_or_404(db, eid)
     
     member = db.members.find_one({'id': token.user_id})
 
     if not member:
         raise HTTPException(400, "User could not be found")
 
-    user = db.events.find_one({"eid" : eid.hex}, {"participants" : {"$elemMatch" : {"id": token.user_id}}})
+    user = db.events.find_one({"eid" : event["eid"]}, {"participants" : {"$elemMatch" : {"id": token.user_id}}})
 
     try : 
         user['participants'][0]
@@ -174,13 +175,13 @@ def leave_event(request: Request, eid:UUID, token: AccessTokenPayload = Depends(
 
     return Response(status_code=200)
 
-@router.get('/{eid}/joined')
-def is_joined_event(request: Request, eid:UUID, token: AccessTokenPayload = Depends(authorize)):
+@router.get('/{eid}/joined', dependencies=[Depends(validate_uuid)])
+def is_joined_event(request: Request, eid:str, token: AccessTokenPayload = Depends(authorize)):
     db = get_database(request)
 
-    crud_get_event_by_id(db, eid)
-    
-    user = db.events.find_one({"eid" : eid.hex}, {"participants" : {"$elemMatch" : {"id": token.user_id}}})
+    event = get_event_or_404(db, eid)
+    # uses event["eid"] instead of casting eid -> UUID 
+    user = db.events.find_one({"eid" : event["eid"]}, {"participants" : {"$elemMatch" : {"id": token.user_id}}})
 
     try : 
         user['participants'][0]
