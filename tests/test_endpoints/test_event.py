@@ -1,4 +1,4 @@
-from uuid import uuid4
+from uuid import UUID, uuid4
 from app.db import get_test_db
 from tests.conftest import client_login
 from tests.test_endpoints.test_members import regular_member, admin_member
@@ -24,6 +24,9 @@ new_event = {
 
 with open("db/seeds/test_seeds/test_events.json") as seed_file:
     test_events = json.load(seed_file)
+    for test_event in test_events:
+        test_event["eid"] = UUID(test_event["eid"]).hex
+
 
 with open("db/seeds/test_seeds/test_members.json") as seed_file:
     test_members = json.load(seed_file)
@@ -74,10 +77,11 @@ def test_update_event(client):
 
     non_existing_eid = "1"*32
     response = client.put(f"/api/event/{non_existing_eid}", json=update_field, headers=headers)
-    assert response.status_code == 400
+    assert response.status_code == 404
 
     response = client.put(f"/api/event/{eid}", json=update_field, headers=headers)
     assert response.status_code == 200
+
     event = db.events.find_one({'eid': eid})
     assert event["title"] == update_field["title"]
 
@@ -138,7 +142,7 @@ def test_get_event_by_id(client):
     assert response.status_code == 200
 
 def test_get_event_participants(client):
-    eid = test_events[0]["eid"]
+    eid = test_events[1]["eid"]
     response = client.get(f'/api/event/{non_existing_eid}/participants')
     assert response.status_code == 404
     response = client.get(f'/api/event/{eid}/participants')
@@ -147,7 +151,7 @@ def test_get_event_participants(client):
     assert len(res_json) == len(test_members)
     
 def test_join_event(client):
-    eid = test_events[0]["eid"]
+    eid = test_events[1]["eid"]
     response = client.post(f'/api/event/{eid}/join')
     assert response.status_code == 403
 
@@ -170,7 +174,7 @@ def test_join_event(client):
     assert response.status_code == 423
 
 def test_leave_event(client):
-    eid = test_events[0]["eid"]
+    eid = test_events[1]["eid"]
     response = client.post(f'/api/event/{eid}/leave')
     assert response.status_code == 403
 
