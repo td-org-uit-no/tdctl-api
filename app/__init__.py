@@ -11,7 +11,7 @@ def create_app():
 
     app = FastAPI(
         title='TDCTL-API',
-        version=0.1,
+        version="0.1",
         description='''TDCTL-database API. 
         Everything related to Tromsøstudentenes Dataforening''',
         contact={'name' : 'td', 'email' : 'td@list.uit.no'},

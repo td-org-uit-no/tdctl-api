@@ -7,11 +7,10 @@ from fastapi.param_functions import File
 from starlette.responses import FileResponse
 from uuid import uuid4, UUID
 
-from app.utils.validation import get_file_type, validate_image_file_type, validate_uuid
+from app.utils.validation import validate_image_file_type, validate_uuid
 from ..db import get_database, get_image_path
-from bson.objectid import ObjectId
 from ..auth_helpers import authorize, role_required
-from ..models import Event, EventDB, AccessTokenPayload, EventInput, EventUpdate, Member
+from ..models import Event, EventDB, AccessTokenPayload, EventInput, EventUpdate
 from .utils import get_event_or_404
 
 router = APIRouter()
@@ -165,6 +164,8 @@ def leave_event(request: Request, eid:str, token: AccessTokenPayload = Depends(a
         raise HTTPException(400, "User could not be found")
 
     user = db.events.find_one({"eid" : event["eid"]}, {"participants" : {"$elemMatch" : {"id": token.user_id}}})
+    if not user:
+        raise HTTPException(400, "User not joined event!")
 
     try : 
         user['participants'][0]
@@ -182,6 +183,9 @@ def is_joined_event(request: Request, eid:str, token: AccessTokenPayload = Depen
     event = get_event_or_404(db, eid)
     # uses event["eid"] instead of casting eid -> UUID 
     user = db.events.find_one({"eid" : event["eid"]}, {"participants" : {"$elemMatch" : {"id": token.user_id}}})
+
+    if not user:
+        return {'joined' : False}
 
     try : 
         user['participants'][0]

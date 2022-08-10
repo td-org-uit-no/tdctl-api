@@ -1,6 +1,5 @@
 from datetime import datetime
 from uuid import UUID, uuid4
-from bson.objectid import ObjectId
 from pymongo import MongoClient
 from app import config
 import json

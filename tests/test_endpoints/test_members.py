@@ -64,6 +64,7 @@ def test_get_members(client):
 
 def test_get_member_by_id(client):
     member = db.members.find_one({'email': regular_member["email"]})
+    assert member
     access_token = client_login(client, regular_member['email'], regular_member['password'])
     headers = {"Authorization": f"Bearer {access_token}"}
     response = client.get("/api/member/", headers=headers, data=member["id"])
@@ -80,7 +81,7 @@ def test_update_member(client):
     response = client.put("/api/member/", headers=headers, json=update_value)
     assert response.status_code == 201
     member = db.members.find_one({'email': regular_member["email"]})
-    assert update_value["classof"] == member["classof"]
+    assert member and update_value["classof"] == member["classof"]
 
 def test_member_activation(client):
     response = client.post("/api/member/activate")
@@ -90,4 +91,4 @@ def test_member_activation(client):
     response = client.post("/api/member/activate", headers=headers)
     assert response.status_code == 200
     member = db.members.find_one({'email': regular_member["email"]})
-    assert member["status"] == "active"
+    assert member and member["status"] == "active"

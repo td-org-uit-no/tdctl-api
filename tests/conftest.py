@@ -1,12 +1,6 @@
 from app import config
-from app.db import get_database, setup_db
-
-from typing import Any
-from typing import Generator
-
 import pytest
 from pymongo import MongoClient
-from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from seeding import seed_events, seed_members
 

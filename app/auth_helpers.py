@@ -1,6 +1,6 @@
 from fastapi import Depends, HTTPException, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from pymongo import database
+from pymongo.database import Database
 from datetime import datetime, timedelta
 from jwt import encode, decode, ExpiredSignatureError, DecodeError
 from uuid import uuid4
@@ -66,7 +66,7 @@ def decode_token(token: bytes, config: Config) -> dict:
     #    raise HTTPException(401, 'Unknown error')
 
 
-def blacklist_token(refreshToken: RefreshTokenPayload, db: database):
+def blacklist_token(refreshToken: RefreshTokenPayload, db: Database):
     '''
     Blacklists the provided (decoded) refresh token.
     '''
@@ -74,7 +74,7 @@ def blacklist_token(refreshToken: RefreshTokenPayload, db: database):
     db.tokens.insert_one(refreshToken.dict())
 
 
-def is_blacklisted(refreshToken: RefreshTokenPayload, db: database):
+def is_blacklisted(refreshToken: RefreshTokenPayload, db: Database):
     '''
     Check if the provided (decoded) refresh token is blacklisted.
     '''

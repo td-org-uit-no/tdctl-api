@@ -1,7 +1,7 @@
 import datetime
 
 from fastapi import APIRouter, Response, Request, HTTPException, Depends
-from ..models import Event, EventDB, AccessTokenPayload, Member
+from ..models import AccessTokenPayload
 from ..auth_helpers import authorize
 from ..db import get_database
 from ..models import PostData, Post, CommentData
