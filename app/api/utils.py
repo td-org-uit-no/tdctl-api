@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Response, Request, HTTPException, Depends
+from fastapi import HTTPException
 from uuid import UUID
 
 def get_event_or_404(db, eid: str):

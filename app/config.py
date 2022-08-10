@@ -20,9 +20,9 @@ class DevelopmentConfig(Config):
 
 
 class ProductionConfig(Config):
-    SECRET_KEY = os.environ.get('SECRET_KEY')
+    SECRET_KEY = os.environ.get('SECRET_KEY') or ''
     ENV = 'production'
-    MONGO_HOST = os.environ.get('DB_HOSTNAME')
+    MONGO_HOST = os.environ.get('DB_HOSTNAME') or ''
     MONGO_PORT = os.environ.get('DB_PORT')
     MONGO_DBNAME = "tdctl"
     MONGO_URI = "mongodb://%s:%s/%s" % (MONGO_HOST, MONGO_PORT, MONGO_DBNAME)

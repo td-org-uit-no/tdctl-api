@@ -1,4 +1,3 @@
-from app.db import get_test_db
 from tests.conftest import client_login
 from .test_members import regular_member
 from app.auth_helpers import decode_token

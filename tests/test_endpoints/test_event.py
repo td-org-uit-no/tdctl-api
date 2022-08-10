@@ -83,7 +83,7 @@ def test_update_event(client):
     assert response.status_code == 200
 
     event = db.events.find_one({'eid': eid})
-    assert event["title"] == update_field["title"]
+    assert event and event["title"] == update_field["title"]
 
 def test_get_all_event(client):
     response = client.get("/api/event/")

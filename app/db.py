@@ -1,9 +1,9 @@
+from pymongo.database import Database
 from app import config
-from pymongo import MongoClient, database
+from pymongo import MongoClient
 from fastapi import Request
 
-
-def get_database(request: Request) -> database:
+def get_database(request: Request) -> Database:
     return request.app.db
 
 def get_image_path(request: Request) -> str:

@@ -1,4 +1,3 @@
-import pytest
 from app.utils.validation import validate_password
 
 def test_validate_password():

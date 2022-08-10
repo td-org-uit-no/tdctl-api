@@ -1,10 +1,6 @@
 from typing import Optional, List
-from pydantic import BaseModel, SecretStr, EmailStr, UUID4, Field
-from uuid import uuid4
-from werkzeug.security import generate_password_hash
+from pydantic import BaseModel, EmailStr, UUID4
 from datetime import datetime
-from bson import ObjectId
-
 
 class AccessTokenPayload(BaseModel):
     exp: int
