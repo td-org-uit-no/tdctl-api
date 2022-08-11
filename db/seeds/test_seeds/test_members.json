@@ -28,6 +28,16 @@
       "phone": "12345678",
       "status": "ACTIVE",
       "role": "admin"
+  },
+  {
+      "realName": "Second Admin",
+      "email" : "second_admin@test.com",
+      "password": "pbkdf2:sha256:260000$1omfX4tE3HPywu0R$f6c84936a3aa61a67f873fd2b47ca94c64c76bc7e1f81d77be222c68b60afb21",
+      "classof": "2018",
+      "graduated": false,
+      "phone": "87654321",
+      "status": "ACTIVE",
+      "role": "admin"
   }
 ]
 
