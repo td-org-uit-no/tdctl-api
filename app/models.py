@@ -24,6 +24,14 @@ class MemberInput(BaseModel):
     graduated: bool
     phone: Optional[str]
 
+class AdminMemberUpdate(BaseModel):
+    realName: Optional[str]
+    role: Optional[str]
+    status: Optional[str]
+    email: Optional[EmailStr]
+    classof: Optional[str]
+    phone: Optional[str]
+
 class MemberUpdate(BaseModel):
     realName: Optional[str]
     email: Optional[EmailStr]
