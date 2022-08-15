@@ -22,9 +22,9 @@ def validate_password(password:str) -> bool:
 
     return True
 
-def validate_uuid(request: Request, eid: str):
+def validate_uuid(request: Request, id: str):
     try:
-        UUID(str(eid))
-        return eid
+        UUID(str(id))
+        return id
     except ValueError:
-        raise HTTPException(400, "UUID is not formatted correctly")
+        raise HTTPException(400, "invalid UUID")
