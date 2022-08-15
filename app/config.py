@@ -13,8 +13,8 @@ class Config:
 class DevelopmentConfig(Config):
     SECRET_KEY = "crashtest"
     ENV = 'development'
-    MONGO_HOST = "127.0.0.1"
-    MONGO_PORT = 27018
+    MONGO_HOST = os.environ.get('DB_HOSTNAME') or "127.0.0.1"
+    MONGO_PORT = int(os.environ.get('DB_PORT') or 27018)
     MONGO_DBNAME = "tdctl"
     MONGO_URI = "mongodb://%s:%s/%s" % (MONGO_HOST, MONGO_PORT, MONGO_DBNAME)
 

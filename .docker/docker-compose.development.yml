@@ -2,13 +2,37 @@ version: "3.5"
 services:
   tdctl_api:
     image: tdctl_api:latest
+    restart: always
+    container_name: tdctl_api
+    build: ../
+    volumes:
+        - ../:/app
     build:
       context: ../
       dockerfile: .docker/dockerfile.api.development
-    ports:
-      - "11000:5000"
-  mongodb:
-    image: mongo:latest
-    restart: always
     environment:
-      MONGO_INITDB_DATABASE: tdctl
+      DB_HOSTNAME: td_mongodb
+      DB_PORT: 26900
+    links:
+      - mongodb
+    depends_on:
+      - mongodb
+    ports:
+      - "5000:5000"
+    networks:
+      - backend
+
+  mongodb:
+    hostname: td_mongodb
+    image: mongo:latest
+    command: mongod --port 26900
+    restart: always
+    volumes:
+      - ../db/db_data:/data/db
+    networks:
+      - backend
+
+networks:
+  backend:
+    external: false
+    driver: bridge
