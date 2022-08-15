@@ -65,16 +65,17 @@ def get_upcoming_events(request: Request):
     return [ Event.parse_obj(event) for event in coming_events ]
 
 # custom uuid validation as eid: UUID will not allow users to copy eids into swagger as they are not formatted correctly
-@router.get('/{eid}/image', dependencies=[Depends(validate_uuid)])
-def get_event_picture(request: Request, eid:str):
+# id is used over eid as parameter name as validate_uuid and the api function needs the have the same parameter name.
+@router.get('/{id}/image', dependencies=[Depends(validate_uuid)])
+def get_event_picture(request: Request, id:str):
     image_path = get_image_path(request)
-    file_name = f"{image_path}/{UUID(eid).hex}.png"
+    file_name = f"{image_path}/{UUID(id).hex}.png"
     if not os.path.exists(file_name):
         raise HTTPException(404, "picture not found")
     return FileResponse(file_name)
 
-@router.post('/{eid}/image', dependencies=[Depends(validate_uuid)])
-def upload_event_picture(request: Request, eid:str, image: UploadFile = File(...), token: AccessTokenPayload = Depends(authorize)):
+@router.post('/{id}/image', dependencies=[Depends(validate_uuid)])
+def upload_event_picture(request: Request, id:str, image: UploadFile = File(...), token: AccessTokenPayload = Depends(authorize)):
     role_required(token, "admin")
     if not validate_image_file_type(image.content_type):
         raise HTTPException(400, "Unsupported file type")
@@ -85,15 +86,15 @@ def upload_event_picture(request: Request, eid:str, image: UploadFile = File(...
     if not os.path.isdir(image_path):
         os.mkdir(image_path)
 
-    picturePath = f"{image_path}/{UUID(eid).hex}.png"
+    picturePath = f"{image_path}/{UUID(id).hex}.png"
 
     with open(picturePath, "wb") as buffer:
         shutil.copyfileobj(image.file, buffer)
 
     return Response(status_code=200)
 
-@router.put('/{eid}', dependencies=[Depends(validate_uuid)])
-def update_event(request: Request, eid:str, eventUpdate: EventUpdate, AccessTokenPayload = Depends(authorize)):
+@router.put('/{id}', dependencies=[Depends(validate_uuid)])
+def update_event(request: Request, id:str, eventUpdate: EventUpdate, AccessTokenPayload = Depends(authorize)):
     role_required(AccessTokenPayload, "admin")
     db = get_database(request)
 
@@ -109,7 +110,7 @@ def update_event(request: Request, eid:str, eventUpdate: EventUpdate, AccessToke
             raise HTTPException(400, "Invalid date")
 
     result = db.events.find_one_and_update(
-        {'eid': UUID(eid).hex},
+        {'eid': UUID(id).hex},
         {"$set": values})
 
     if result == None:
@@ -117,27 +118,27 @@ def update_event(request: Request, eid:str, eventUpdate: EventUpdate, AccessToke
 
     return Response(status_code=200)
 
-@router.get('/{eid}', dependencies=[Depends(validate_uuid)])
-def get_event_by_id(request: Request, eid:str):
+@router.get('/{id}', dependencies=[Depends(validate_uuid)])
+def get_event_by_id(request: Request, id:str):
     db = get_database(request)
 
-    event = get_event_or_404(db, eid)
+    event = get_event_or_404(db, id)
     return EventDB.parse_obj(event)
 
-@router.get('/{eid}/participants', dependencies=[Depends(validate_uuid)])
-def get_event_participants(request: Request, eid:str):
+@router.get('/{id}/participants', dependencies=[Depends(validate_uuid)])
+def get_event_participants(request: Request, id:str):
     db = get_database(request)
 
-    event = get_event_or_404(db, eid)
+    event = get_event_or_404(db, id)
 
     return [{'id' : p['id'], 'name': p['realName']} for p in event['participants']]
 
 # 400 if already joined?
-@router.post('/{eid}/join', dependencies=[Depends(validate_uuid)])
-def join_event(request: Request, eid:str, token: AccessTokenPayload = Depends(authorize)):
+@router.post('/{id}/join', dependencies=[Depends(validate_uuid)])
+def join_event(request: Request, id:str, token: AccessTokenPayload = Depends(authorize)):
     db = get_database(request)
     
-    event = get_event_or_404(db, eid)
+    event = get_event_or_404(db, id)
 
     member = db.members.find_one({'id': token.user_id})
 
@@ -152,11 +153,11 @@ def join_event(request: Request, eid:str, token: AccessTokenPayload = Depends(au
 
     return Response(status_code=200)
 
-@router.post('/{eid}/leave', dependencies=[Depends(validate_uuid)])
-def leave_event(request: Request, eid:str, token: AccessTokenPayload = Depends(authorize)):
+@router.post('/{id}/leave', dependencies=[Depends(validate_uuid)])
+def leave_event(request: Request, id:str, token: AccessTokenPayload = Depends(authorize)):
     db = get_database(request)
 
-    event = get_event_or_404(db, eid)
+    event = get_event_or_404(db, id)
     
     member = db.members.find_one({'id': token.user_id})
 
@@ -176,11 +177,11 @@ def leave_event(request: Request, eid:str, token: AccessTokenPayload = Depends(a
 
     return Response(status_code=200)
 
-@router.get('/{eid}/joined', dependencies=[Depends(validate_uuid)])
-def is_joined_event(request: Request, eid:str, token: AccessTokenPayload = Depends(authorize)):
+@router.get('/{id}/joined', dependencies=[Depends(validate_uuid)])
+def is_joined_event(request: Request, id:str, token: AccessTokenPayload = Depends(authorize)):
     db = get_database(request)
 
-    event = get_event_or_404(db, eid)
+    event = get_event_or_404(db, id)
     # uses event["eid"] instead of casting eid -> UUID 
     user = db.events.find_one({"eid" : event["eid"]}, {"participants" : {"$elemMatch" : {"id": token.user_id}}})
 
