@@ -4,6 +4,8 @@ from pymongo import ReturnDocument
 from typing import List
 from uuid import uuid4, UUID
 
+from app.utils.validation import validate_uuid
+
 from ..models import Member, MemberInput, MemberUpdate, AccessTokenPayload
 from ..auth_helpers import authorize, role_required
 from ..db import get_database
@@ -57,7 +59,7 @@ def get_member_associated_with_token(request: Request, token: AccessTokenPayload
     return Member.parse_obj(currentMember)
 
 
-@router.get('/{id}', response_model=Member, responses={404: {"model": None}})
+@router.get('/{id}', response_model=Member, responses={404: {"model": None}}, dependencies=[Depends(validate_uuid)])
 def get_member_by_id(request: Request, id: str, token: dict = Depends(authorize)):
     '''Returns a user object associated with id passed in'''
     db = get_database(request)

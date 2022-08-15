@@ -1,12 +1,14 @@
 from fastapi import APIRouter, Request, HTTPException, Depends, Response
 from uuid import UUID
+
+from app.utils.validation import validate_uuid
 from ..db import get_database
 from ..models import AccessTokenPayload, AdminMemberUpdate
 from ..auth_helpers import authorize, role_required
 
 router = APIRouter()
 
-@router.put('/member/{id}')
+@router.put('/member/{id}', dependencies=[Depends(validate_uuid)])
 def update_member(request: Request, id: str, memberData: AdminMemberUpdate, token: AccessTokenPayload = Depends(authorize)):
     role_required(token, 'admin')
     db = get_database(request)
