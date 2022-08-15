@@ -10,6 +10,12 @@ from .models import MemberDB, RefreshTokenPayload, AccessTokenPayload
 
 security_scheme = HTTPBearer()
 
+def authorize_admin(request: Request, token: HTTPAuthorizationCredentials = Depends(security_scheme)):
+    payload = authorize(request, token)
+    
+    if payload.role != "admin":
+        raise HTTPException(403, 'Insufficient privileges to access this resource')
+    return payload
 
 def authorize(request: Request, token: HTTPAuthorizationCredentials = Depends(security_scheme)):
     '''
