@@ -1,9 +1,9 @@
-FROM python:3 as Build
+FROM python:3.8.9
 
 WORKDIR /app
 COPY . .
 RUN pip3 install pipenv
-RUN pipenv lock --requirements > requirements.txt
+RUN pipenv requirements > requirements.txt
 
 RUN pip3 install -r requirements.txt
 CMD ["python3", "manage.py"]
