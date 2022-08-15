@@ -1,16 +1,64 @@
 from fastapi import APIRouter, Request, HTTPException, Depends, Response
-from uuid import UUID
-
-from app.utils.validation import validate_uuid
+from uuid import UUID, uuid4
+from werkzeug.security import generate_password_hash
+from app.utils.validation import validate_password, validate_uuid
 from ..db import get_database
-from ..models import AccessTokenPayload, AdminMemberUpdate
-from ..auth_helpers import authorize, role_required
+from ..models import AccessTokenPayload, AdminMemberUpdate, MemberInput
+from ..auth_helpers import authorize_admin
+from ..utils import passwordError
 
 router = APIRouter()
 
-@router.put('/member/{id}', dependencies=[Depends(validate_uuid)])
-def update_member(request: Request, id: str, memberData: AdminMemberUpdate, token: AccessTokenPayload = Depends(authorize)):
-    role_required(token, 'admin')
+@router.post('/give-admin-privileges/{id}', dependencies=[Depends(validate_uuid)])
+def give_existing_user_admin_privileges(request: Request, id: str, token: AccessTokenPayload = Depends(authorize_admin)):
+    db = get_database(request)
+    id = UUID(id).hex
+
+    user = db.members.find_one({'id': id})
+    if not user:
+        raise HTTPException(404, "User not found")
+
+    if user["role"] == "admin":
+        raise HTTPException(400, "User already admin")
+    
+    results = db.members.find_one_and_update({'id': id}, {'$set': {'role': 'admin'}})
+    if not results:
+        raise HTTPException(500)
+    return Response(status_code=201)
+    
+@router.post('/')
+def create_admin_user(request: Request, newAdmin: MemberInput, token: AccessTokenPayload = Depends(authorize_admin)):
+    db = get_database(request)
+    exists = db.members.find_one({'email': newAdmin.email.lower()})
+    if exists:
+        raise HTTPException(409, 'E-mail is already in use.')
+    if not validate_password(newAdmin.password):
+        raise HTTPException(400, passwordError)
+    pwd = generate_password_hash(newAdmin.password)
+
+    uid = uuid4().hex
+    additionalFields = {
+        'id': uid,
+        'email': newAdmin.email.lower(),  # Lowercase e-mail
+        'password': pwd,
+        'role': 'admin',
+        'status': 'inactive',
+    }
+
+    admin = newAdmin.dict()
+    admin.update(additionalFields)
+    # Create user object
+    db.members.insert_one(admin)
+
+    # Create confirmation code
+    confirmationCode = uuid4().hex
+    db.confirmations.insert_one(
+        {"confirmationCode": confirmationCode, 'user_id': admin['id']}
+    )
+    return Response(status_code=201)
+
+@router.put('/member/{id}')
+def update_member(request: Request, id: str, memberData: AdminMemberUpdate, token: AccessTokenPayload = Depends(authorize_admin)):
     db = get_database(request)
     id = UUID(id).hex
 
@@ -39,3 +87,24 @@ def update_member(request: Request, id: str, memberData: AdminMemberUpdate, toke
         raise HTTPException(500, "Unexpected error while updating member")
 
     return Response(status_code=201)
+
+# minimum delete i.e only from the members collection
+# TODO add full deletion for a user
+@router.delete('/member/{id}', dependencies=[Depends(validate_uuid)])
+def delete_member(request: Request, id: str, token: AccessTokenPayload = Depends(authorize_admin)):
+    db = get_database(request)
+    id = UUID(id).hex
+    member = db.members.find_one({'id': id})
+
+    if not member:
+        raise HTTPException(404, "User not found")
+
+    if member["role"] == "admin":
+        raise HTTPException(403, "Admin cannot delete another admin")
+
+    result = db.members.find_one_and_delete({'id': id})
+
+    if not result:
+        raise HTTPException(500)
+
+    return Response(status_code=200)
