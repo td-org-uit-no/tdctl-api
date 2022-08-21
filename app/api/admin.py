@@ -23,11 +23,19 @@ def update_member(request: Request, id: str, memberData: AdminMemberUpdate, toke
     if not updateInfo:
         return HTTPException(400)
 
+    user = db.members.find_one({'id': id})
+
+    if not user:
+        raise HTTPException(404, "User not found")
+
+    if user["role"] == "admin":
+        raise HTTPException(400, "Admin cannot update another admin")
+
     result = db.members.find_one_and_update(
-        {'id': id, 'role': {'$ne': 'admin'}},
+        {'id': id}, 
         {"$set": updateInfo})
 
     if not result:
-        raise HTTPException(404, "User not found")
+        raise HTTPException(500, "Unexpected error while updating member")
 
     return Response(status_code=201)
