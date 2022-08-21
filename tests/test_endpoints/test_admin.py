@@ -1,3 +1,4 @@
+from uuid import uuid4
 from app.db import get_test_db
 from tests.conftest import client_login
 
@@ -25,6 +26,12 @@ admin_member = {
 
 db = get_test_db()
 
+def generate_non_existing_uuid():
+    id = uuid4().hex
+    while db.members.find_one({'id': id}):
+        id = uuid4().hex
+    return id
+
 def test_admin_update_member(client):
     update_value = {"classof": "2016"}
     member = db.members.find_one({'email': regular_member["email"]})
@@ -47,12 +54,17 @@ def test_admin_update_member(client):
     member = db.members.find_one({'email': regular_member["email"]})
     assert member and update_value["classof"] == member["classof"]
 
+    # Checks against updating non existing user
+    non_existing_member = generate_non_existing_uuid()
+    response = client.put(f"/api/admin/member/{non_existing_member}", headers=headers, json=update_value)
+    assert response.status_code == 404
+
     # Should not be able to update info on another admin
     admin = db.members.find_one({'email': second_admin["email"]})
     assert admin
 
     response = client.put(f"/api/admin/member/{admin['id']}", headers=headers, json=update_value)
-    assert response.status_code == 404
+    assert response.status_code == 400
 
     admin = db.members.find_one({'email': second_admin["email"]})
     assert admin and update_value["classof"] != admin["classof"]
