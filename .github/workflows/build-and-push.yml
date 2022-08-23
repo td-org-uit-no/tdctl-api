@@ -3,7 +3,7 @@ name: Build and push docker image
 on:
   push:
     branches:
-      - master
+      - feature/docker_upgrade
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -11,13 +11,15 @@ jobs:
       - name: Checking out code
         uses: actions/checkout@v2
 
-      - name: Build and push Docker images
-        uses: docker/build-push-action@v1
+      - uses: docker/login-action@v1
         with:
-          username: td-org-uit-no
+          username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
-          repository: td-org-uit-no/tdctl-api/tdctl-api
-          registry: docker.pkg.github.com
-          dockerfile: .docker/dockerfile.api.production
-          tag_with_sha: true
-          tag_with_ref: true
+          registry: ghcr.io
+
+      - name: Build and push Docker images
+        uses: docker/build-push-action@v2
+        with:
+          push: true
+          file: .docker/dockerfile.api.production
+          tags: ghcr.io/${{ github.repository }}/tdctl-api:latest
