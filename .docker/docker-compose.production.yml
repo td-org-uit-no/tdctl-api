@@ -1,7 +1,7 @@
 version: "3.5"
 services:
   tdctl_api:
-    image: tdctl_api:latest
+    image: ghcr.io/td-org-uit-no/tdctl-api/tdctl-api:latest
     build:
       context: ../
       dockerfile: .docker/dockerfile.api.production
@@ -21,18 +21,27 @@ services:
       MONGO_INITDB_DATABASE: tdctl
     networks:
       - backend
-
   nginx:
     build:
-      context: ../
-      dockerfile: .docker/dockerfile.nginx
+      context: ./
+      dockerfile: dockerfile.nginx
     image: nginx:latest
     ports:
-      - "5000:80"
-    depends_on:
-      - tdctl_api
+      - "80:80"
+      - "443:443"
     networks:
       - frontend
+    volumes: 
+      - ./certbot/data/certbot/conf:/etc/letsencrypt
+      - ./certbot/data/certbot/www:/var/www/certbot
+    command: "/bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g \"daemon off;\"'"
+
+  certbot:
+    image: certbot/certbot
+    volumes:
+      - ./certbot/data/certbot/conf:/etc/letsencrypt
+      - ./certbot/data/certbot/www:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
 
 networks:
   frontend:
