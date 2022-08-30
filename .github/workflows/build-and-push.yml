@@ -20,6 +20,8 @@ jobs:
       - name: Build and push Docker images
         uses: docker/build-push-action@v2
         with:
+          # gives the build the correct context
+          context: ./
           push: true
           file: .docker/dockerfile.api.production
           tags: ghcr.io/${{ github.repository }}/tdctl-api:latest
