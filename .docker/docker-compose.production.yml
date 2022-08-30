@@ -5,6 +5,9 @@ services:
     build:
       context: ../
       dockerfile: .docker/dockerfile.api.production
+    volumes:
+      - ../db/seeds:/var/www/db/seeds
+      - ../db/eventImages:/var/www/db/eventImages
     environment:
       FLASK_APP_ENV: production
       DB_HOSTNAME: mongodb
@@ -17,6 +20,8 @@ services:
   mongodb:
     image: mongo:latest
     restart: unless-stopped
+    volumes:
+      - ../db/db_data:/data/db
     environment:
       MONGO_INITDB_DATABASE: tdctl
     networks:
