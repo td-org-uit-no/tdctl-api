@@ -2,7 +2,7 @@ FROM python:3.8 as Build
 
 WORKDIR /var/www/
 
-ADD . /var/www/
+ADD .. /var/www/
 
 RUN pip3 install pipenv
 RUN pipenv requirements > requirements.txt
