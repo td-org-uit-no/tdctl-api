@@ -2,6 +2,23 @@ from typing import Optional, List
 from pydantic import BaseModel, EmailStr, UUID4
 from datetime import datetime
 
+class MailPayload(BaseModel):
+    """
+    Mail model used to define emails sent from server
+    subject: str
+        - Subject of email.
+    content: str
+        - Content of email.
+    to: List[EmailStr]
+        - List of emails to send email to.
+    sent_by: str
+        - Email that is to be marked as sender.
+    """
+    subject: str
+    content: str
+    to : List[EmailStr]
+    sent_by : str = "no-reply@td-uit.no"
+
 class AccessTokenPayload(BaseModel):
     exp: int
     iat: int
