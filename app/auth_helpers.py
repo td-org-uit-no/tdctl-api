@@ -4,11 +4,26 @@ from pymongo.database import Database
 from datetime import datetime, timedelta
 from jwt import encode, decode, ExpiredSignatureError, DecodeError
 from uuid import uuid4
+from google.oauth2 import service_account
+
 
 from .config import Config
 from .models import MemberDB, RefreshTokenPayload, AccessTokenPayload
 
 security_scheme = HTTPBearer()
+
+SCOPES = ['https://www.googleapis.com/auth/gmail.compose']
+KEY_PATH = '.config/mail_credentials.json'
+
+def get_google_credentials(impersonate_email: str):
+    """
+    Gets credantials from google used for sending email trough a service acount
+    Paramaters:
+        impersonate_email
+            - Mail for service email to impersonate when sending emails.
+    """
+    credentials = service_account.Credentials.from_service_account_file(KEY_PATH,scopes=SCOPES).with_subject(impersonate_email)
+    return credentials
 
 def authorize_admin(request: Request, token: HTTPAuthorizationCredentials = Depends(security_scheme)):
     payload = authorize(request, token)
