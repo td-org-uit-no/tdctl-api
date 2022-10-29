@@ -103,7 +103,7 @@ def test_admin_update_member(client):
     assert admin
 
     response = client.put(f"/api/admin/member/{admin['id']}", headers=headers, json=update_value)
-    assert response.status_code == 400
+    assert response.status_code == 403
 
     admin = db.members.find_one({'email': second_admin["email"]})
     assert admin and update_value["classof"] != admin["classof"]
