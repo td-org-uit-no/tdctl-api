@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Response, Request, HTTPException, Depends
+from pydantic.networks import EmailStr
 from werkzeug.security import generate_password_hash
 from pymongo import ReturnDocument
 from typing import List
@@ -7,7 +8,7 @@ from uuid import uuid4, UUID
 from app.utils.validation import validate_uuid
 
 from ..models import Member, MemberInput, MemberUpdate, AccessTokenPayload
-from ..auth_helpers import authorize, role_required
+from ..auth_helpers import authorize, authorize_admin, role_required
 from ..db import get_database
 from ..utils import validate_password, passwordError
 
@@ -69,6 +70,13 @@ def get_member_by_id(request: Request, id: str, token: dict = Depends(authorize)
         raise HTTPException(404, 'Member not found')
     return Member.parse_obj(member)
 
+@router.get('/email/{email}')
+def get_member_by_email(request: Request, email: EmailStr, token: AccessTokenPayload = Depends(authorize_admin)):
+    db = get_database(request)
+    member = db.members.find_one({'email': email.lower()})
+    if not member:
+        raise HTTPException(404, 'Member not found')
+    return {'id': member['id']}
 
 @router.get("s/", response_model=List[Member])
 def get_all_members(request: Request, token: AccessTokenPayload = Depends(authorize)):
@@ -76,7 +84,6 @@ def get_all_members(request: Request, token: AccessTokenPayload = Depends(author
     role_required(token, 'admin')
     db = get_database(request)
     return [Member.parse_obj(m) for m in db.members.find()]
-
 
 @router.post('/activate')
 def change_status(request: Request, token: AccessTokenPayload = Depends(authorize)):
