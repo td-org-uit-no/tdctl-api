@@ -145,13 +145,13 @@ def join_event(request: Request, id:str, token: AccessTokenPayload = Depends(aut
     if not member:
         raise HTTPException(400, "User could not be found")
 
-    if event['maxParticipants']:
-        if len(event['participants']) >= event['maxParticipants']:
-            raise HTTPException(423, "Event full")
-
     db.events.update_one({'eid' : event['eid']}, { "$addToSet": { "participants": member } })
 
-    return Response(status_code=200)
+    if event['maxParticipants']:
+        if len(event['participants']) >= event['maxParticipants']:
+            return {'max': True}
+
+    return {'max': False}
 
 @router.post('/{id}/leave', dependencies=[Depends(validate_uuid)])
 def leave_event(request: Request, id:str, token: AccessTokenPayload = Depends(authorize)):
@@ -175,7 +175,7 @@ def leave_event(request: Request, id:str, token: AccessTokenPayload = Depends(au
 
     db.events.update_one({'eid' : event['eid']}, { "$pull": { "participants": member } })
 
-    return Response(status_code=200)
+    return {'max': event['maxParticipants'] }
 
 @router.get('/{id}/joined', dependencies=[Depends(validate_uuid)])
 def is_joined_event(request: Request, id:str, token: AccessTokenPayload = Depends(authorize)):
