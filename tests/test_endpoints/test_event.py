@@ -167,11 +167,15 @@ def test_join_event(client):
     # joins the event
     response = client.post(f'/api/event/{new_event_eid}/join', headers=headers)
     assert response.status_code == 200
-    # checks that event not allowing more than max participants
+    res = response.json()
+    assert res['max'] == False
+    # checks response on full event
     access_token = client_login(client, payload["email"], payload["password"])
     headers = {"Authorization": f"Bearer {access_token}"}
     response = client.post(f'/api/event/{new_event_eid}/join', headers=headers)
-    assert response.status_code == 423
+    assert response.status_code == 200
+    res = response.json()
+    assert res['max'] == True
 
 def test_leave_event(client):
     eid = test_events[1]["eid"]
