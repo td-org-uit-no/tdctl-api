@@ -1,6 +1,7 @@
 from datetime import datetime
 from uuid import UUID, uuid4
 from pymongo import MongoClient
+from werkzeug.security import generate_password_hash
 from app import config
 import json
 import os
@@ -9,15 +10,45 @@ import shutil
 # TODO fix imports so that the file can be added into the db folder
 base_dir = "db/seeds"
 
+def seed_random_member(db, number):
+    ''' seed a numbr of random users '''
+    id = 0
+    i = 0
+    while i < number:
+        name = 'name'
+        email = f'{name}{id}@mail.com'
+        db_member = db.members.find_one({'email': email})
+        if db_member:
+            id += 1
+            continue
+        uid = uuid4().hex
+        pwd = generate_password_hash(f'{name}%{id}')
+        user = {
+            'id': uid,
+            'realName': name,
+            'email': email,
+            'password': pwd,
+            'role': 'member',
+            'status': 'inactive',
+            'classof': '2022',
+            'graduated': False,
+        }
+        db.members.insert_one(user)
+        i += 1
+
 def seed_members(db, seed_path):
+    ''' seed based on seed file '''
+    new_members = []
     with open(seed_path, "r") as f:
         members = json.load(f)
     for member in members:
         db_member = db.members.find_one({'email': member['email'].lower()})
         if db_member:
             continue
+        new_members.append(member)
         member["id"] = uuid4().hex
-    db["members"].insert_many(members)
+    if len(new_members):
+        db["members"].insert_many(new_members)
 
 def seed_events(db, seed_path):
 
@@ -52,5 +83,6 @@ def get_db():
 
 if __name__ == "__main__":
     db = get_db()
+    seed_random_member(db, 5)
     seed_members(db, f"{base_dir}/members.json")
     seed_events(db, f"{base_dir}/events.json")
