@@ -8,6 +8,8 @@ services:
     volumes:
       - ../db/seeds:/var/www/db/seeds
       - ../db/eventImages:/var/www/db/eventImages
+        # mount .config as mail credentials cannot be on github
+      - ../.config:/var/www/.config
     environment:
       FLASK_APP_ENV: production
       DB_HOSTNAME: mongodb
