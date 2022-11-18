@@ -1,3 +1,5 @@
 requirements.txt
 .docker
 db
+.git
+.github
