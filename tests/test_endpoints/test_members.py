@@ -72,6 +72,30 @@ def test_get_member_by_id(client):
     res_json = response.json()
     assert res_json['email'] == regular_member['email']
 
+def test_get_member_by_email(client):
+    member = db.members.find_one({'email': regular_member["email"]})
+    assert member
+    non_existing_user = "not_a@user.com"
+    invalid_email = "not_a@user"
+
+    response = client.get(f"/api/member/email/{member['email']}")
+    assert response.status_code == 403
+
+    access_token = client_login(client, admin_member['email'], admin_member['password'])
+    headers = {"Authorization": f"Bearer {access_token}"}
+
+    response = client.get(f"/api/member/email/{non_existing_user}", headers=headers)
+    assert response.status_code == 404
+
+    response = client.get(f"/api/member/email/{invalid_email}", headers=headers)
+    assert response.status_code == 422
+
+    # test excpected behavior
+    response = client.get(f"/api/member/email/{member['email']}", headers=headers)
+    assert response.status_code == 200
+    res = response.json()
+    assert res["id"] == member["id"]
+
 def test_update_member(client):
     update_value = {"classof": "2016"}
     response = client.put("/api/member/", json=update_value)
