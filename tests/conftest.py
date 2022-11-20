@@ -1,5 +1,7 @@
-from app import config
 import pytest
+import warnings
+import os
+from app import config
 from pymongo import MongoClient
 from fastapi.testclient import TestClient
 from seeding import seed_events, seed_members
@@ -20,6 +22,8 @@ def app():
 # The db resets after every test
 @pytest.fixture
 def client(app):
+    # removes warnings in docker env
+    warnings.filterwarnings("ignore", category=DeprecationWarning)
     mongo_client = MongoClient(app.config.MONGO_URI)
     # change the fastapi db to the test database
     app.db = mongo_client[app.config.MONGO_DBNAME]
