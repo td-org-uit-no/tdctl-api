@@ -24,6 +24,8 @@ google-auth-httplib2 = "0.1.0"
 google-auth-oauthlib = "0.5.3"
 #fastapi->testclient dependency
 requests="2.27.1"
+# python sdk for docker
+docker="6.0.1"
 
 [requires]
 python_version = "3.8"
