@@ -1,6 +1,5 @@
 import os
 
-
 class Config:
     SECRET_KEY: str
     ENV: str
@@ -23,14 +22,14 @@ class ProductionConfig(Config):
     SECRET_KEY = os.environ.get('SECRET_KEY') or ''
     ENV = 'production'
     MONGO_HOST = os.environ.get('DB_HOSTNAME') or ''
-    MONGO_PORT = os.environ.get('DB_PORT')
+    MONGO_PORT = int(os.environ.get('DB_PORT') or 27017)
     MONGO_DBNAME = "tdctl"
     MONGO_URI = "mongodb://%s:%s/%s" % (MONGO_HOST, MONGO_PORT, MONGO_DBNAME)
 
 class TestConfig(Config):
     SECRET_KEY = "test"
     ENV = 'test'
-    MONGO_HOST = "127.0.0.1"
+    MONGO_HOST = os.environ.get('TEST_DB_HOSTNAME') or '127.0.0.1'
     MONGO_PORT = 27018
     MONGO_DBNAME = "test"
     MONGO_URI = "mongodb://%s:%s/%s" % (MONGO_HOST, MONGO_PORT, MONGO_DBNAME)
