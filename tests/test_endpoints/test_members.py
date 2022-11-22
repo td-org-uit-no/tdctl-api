@@ -1,6 +1,9 @@
 from app.db import get_test_db
 from tests.conftest import client_login
+from tests.users import regular_member, admin_member
 import json
+
+from tests.utils.authentication import admin_required, authentication_required
 
 payload = {
     "realName": "new member",
@@ -8,16 +11,6 @@ payload = {
     "password": "Test!234",
     "classof":"2000",
     "graduated": False,
-}
-
-regular_member = {
-    "email": "test@test.com",
-    "password": "Test!234"
-}
-
-admin_member = {
-    "email": "test_admin@test.com",
-    "password": "&AdminTester1"
 }
 
 db = get_test_db()
@@ -34,9 +27,8 @@ def test_create_member(client):
     new_member = db.members.find_one({'email': payload["email"]})
     assert new_member != None
 
+@authentication_required('/api/member', 'get')
 def test_get_member_associated_with_token(client):
-    response = client.get('/api/member/')
-    assert response.status_code == 403
     access_token = client_login(client, regular_member['email'], regular_member['password'])
     headers = {"Authorization": f"Bearer {access_token}"}
     response = client.get('/api/member/', headers=headers)
@@ -45,12 +37,8 @@ def test_get_member_associated_with_token(client):
     assert res_json['email'] == regular_member["email"]
      
 
+@admin_required('api/members', 'get')
 def test_get_members(client):
-    response = client.get("/api/members/")
-    assert response.status_code == 403
-    access_token = client_login(client, regular_member['email'], regular_member['password'])
-    response = client.get('/api/members/', headers={"Authorization": f"Bearer {access_token}"})
-    assert response.status_code == 403
     access_token = client_login(client, admin_member["email"], admin_member["password"])
     response = client.get('/api/members/', headers={"Authorization": f"Bearer {access_token}"})
     assert response.status_code == 200
@@ -62,6 +50,7 @@ def test_get_members(client):
 
     assert len(res_json) == len(seed_json)
 
+@authentication_required('api/member/', 'get')
 def test_get_member_by_id(client):
     member = db.members.find_one({'email': regular_member["email"]})
     assert member
@@ -72,14 +61,13 @@ def test_get_member_by_id(client):
     res_json = response.json()
     assert res_json['email'] == regular_member['email']
 
+
+@admin_required('api/member/email/{uuid}', 'get')
 def test_get_member_by_email(client):
     member = db.members.find_one({'email': regular_member["email"]})
     assert member
     non_existing_user = "not_a@user.com"
     invalid_email = "not_a@user"
-
-    response = client.get(f"/api/member/email/{member['email']}")
-    assert response.status_code == 403
 
     access_token = client_login(client, admin_member['email'], admin_member['password'])
     headers = {"Authorization": f"Bearer {access_token}"}
@@ -96,10 +84,9 @@ def test_get_member_by_email(client):
     res = response.json()
     assert res["id"] == member["id"]
 
+@authentication_required('api/member/', 'put')
 def test_update_member(client):
     update_value = {"classof": "2016"}
-    response = client.put("/api/member/", json=update_value)
-    assert response.status_code == 403
     access_token = client_login(client, regular_member["email"], regular_member["password"])
     headers = {"Authorization": f"Bearer {access_token}"}
     response = client.put("/api/member/", headers=headers, json=update_value)
@@ -107,9 +94,8 @@ def test_update_member(client):
     member = db.members.find_one({'email': regular_member["email"]})
     assert member and update_value["classof"] == member["classof"]
 
+@authentication_required('api/member/activate', 'post')
 def test_member_activation(client):
-    response = client.post("/api/member/activate")
-    assert response.status_code == 403
     access_token = client_login(client, regular_member["email"], regular_member["password"])
     headers = {"Authorization": f"Bearer {access_token}"}
     response = client.post("/api/member/activate", headers=headers)
