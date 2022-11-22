@@ -9,7 +9,7 @@ flake8 = "*"
 pylint = "*"
 
 [packages]
-pyjwt = "==1.7.1"
+pyjwt = "==2.6.0"
 Werkzeug = "==2.0.1"
 flask-cors = "==3.0.10"
 fastapi = "==0.68.0"
