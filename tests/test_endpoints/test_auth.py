@@ -1,7 +1,8 @@
 from tests.conftest import client_login
-from .test_members import regular_member
+from tests.utils.authentication import authentication_required
 from app.auth_helpers import decode_token
 from app.config import config
+from tests.users import regular_member
 
 def test_login(client):
     unregister_user = {
@@ -25,9 +26,8 @@ def test_refresh_token(client):
     token_payload = decode_token(res_json["accessToken"], config["test"])
     assert token_payload["access_token"] == True
 
+@authentication_required('/api/auth/password', "post")
 def test_change_password(client):
-    response = client.post("/api/auth/password")
-    assert response.status_code == 403
     change_password_payload = {
         "password": regular_member["password"],
         "newPassword": "NewPassword!2"
