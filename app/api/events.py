@@ -9,15 +9,14 @@ from uuid import uuid4, UUID
 
 from app.utils.validation import validate_image_file_type, validate_uuid
 from ..db import get_database, get_image_path
-from ..auth_helpers import authorize, role_required
+from ..auth_helpers import authorize, authorize_admin, role_required
 from ..models import Event, EventDB, AccessTokenPayload, EventInput, EventUpdate
 from .utils import get_event_or_404
 
 router = APIRouter()
 
 @router.post('/')
-def create_event(request: Request, newEvent: EventInput, token: AccessTokenPayload = Depends(authorize)):
-    role_required(token, "admin")
+def create_event(request: Request, newEvent: EventInput, token: AccessTokenPayload = Depends(authorize_admin)):
     db = get_database(request)
 
     # TODO better format handling and date date-time handling
@@ -75,8 +74,7 @@ def get_event_picture(request: Request, id:str):
     return FileResponse(file_name)
 
 @router.post('/{id}/image', dependencies=[Depends(validate_uuid)])
-def upload_event_picture(request: Request, id:str, image: UploadFile = File(...), token: AccessTokenPayload = Depends(authorize)):
-    role_required(token, "admin")
+def upload_event_picture(request: Request, id:str, image: UploadFile = File(...), token: AccessTokenPayload = Depends(authorize_admin)):
     if not validate_image_file_type(image.content_type):
         raise HTTPException(400, "Unsupported file type")
 
@@ -94,8 +92,7 @@ def upload_event_picture(request: Request, id:str, image: UploadFile = File(...)
     return Response(status_code=200)
 
 @router.put('/{id}', dependencies=[Depends(validate_uuid)])
-def update_event(request: Request, id:str, eventUpdate: EventUpdate, AccessTokenPayload = Depends(authorize)):
-    role_required(AccessTokenPayload, "admin")
+def update_event(request: Request, id:str, eventUpdate: EventUpdate, AccessTokenPayload = Depends(authorize_admin)):
     db = get_database(request)
 
     values = eventUpdate.dict(exclude_none=True)
