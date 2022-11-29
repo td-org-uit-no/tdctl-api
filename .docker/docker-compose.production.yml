@@ -8,6 +8,7 @@ services:
     volumes:
       - ../db/seeds:/var/www/db/seeds
       - ../db/eventImages:/var/www/db/eventImages
+      - ../db/eventExports:/var/www/db/eventExports
         # mount .config as mail credentials cannot be on github
       - ../.config:/var/www/.config
     environment:
@@ -38,10 +39,10 @@ services:
       - "443:443"
     networks:
       - frontend
-    volumes: 
+    volumes:
       - ./certbot/data/certbot/conf:/etc/letsencrypt
       - ./certbot/data/certbot/www:/var/www/certbot
-    command: "/bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g \"daemon off;\"'"
+    command: '/bin/sh -c ''while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g "daemon off;"'''
 
   certbot:
     image: certbot/certbot
