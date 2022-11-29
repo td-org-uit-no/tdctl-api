@@ -26,6 +26,8 @@ google-auth-oauthlib = "0.5.3"
 requests="2.27.1"
 # python sdk for docker
 docker="6.0.1"
+pandas = "1.5.2"
+xlsxwriter = "3.0.3"
 
 [requires]
 python_version = "3.8"
