@@ -5,6 +5,8 @@ WORKDIR /var/www/
 ADD . /var/www/
 
 RUN pip3 install pipenv
+# ensure requirements.txt gets the newest packages
+RUN pipenv lock
 RUN pipenv requirements > requirements.txt
 RUN pip install -r requirements.txt
 CMD ["uvicorn", "manage:app", "--host", "0.0.0.0", "--port", "5000"]
