@@ -27,7 +27,8 @@ requests="2.27.1"
 # python sdk for docker
 docker="6.0.1"
 pandas = "1.5.2"
+numpy = "1.23.5"
+openpyxl = "3.0.9"
 xlsxwriter = "3.0.3"
-
 [requires]
 python_version = "3.8"
