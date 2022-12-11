@@ -334,7 +334,8 @@ async def exportEvent(background_tasks: BackgroundTasks, request: Request, id: s
                 worksheet.set_row(
                     col+1, 15 + 1, cell_format=participants_wait_format2)
     # Cleanup file created after request is done
-    writer.save()
+    #writer.save()
+    writer.close()
     background_tasks.add_task(os.remove, path)
 
     headers = {'Content-Disposition': 'attachment; filename="Book.xlsx"'}
