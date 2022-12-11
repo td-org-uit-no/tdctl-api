@@ -203,7 +203,6 @@ def test_join_event(client):
     # joins the event
     response = client.post(
         f'/api/event/{new_event_eid}/join', json=joinEventPayload, headers=headers)
-    print(response.reason)
     assert response.status_code == 200
 
     res = response.json()
