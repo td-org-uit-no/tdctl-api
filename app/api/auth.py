@@ -24,7 +24,7 @@ def login(request: Request, credentials: Credentials):
 
     token = create_token(member, request.app.config)
     refreshToken = create_refresh_token(member, request.app.config)
-    return {"accessToken": token.decode(), "refreshToken": refreshToken.decode()}
+    return {"accessToken": token, "refreshToken": refreshToken}
 
 
 @router.post('/logout')
@@ -54,7 +54,7 @@ def renew(request: Request, refreshToken: RefreshToken):
     token = create_token(user, request.app.config)
     refreshToken = create_refresh_token(user, request.app.config)
     blacklist_token(tokenPayload, request.app.db)
-    return {"accessToken": token.decode(), "refreshToken": refreshToken.decode()}
+    return {"accessToken": token, "refreshToken": refreshToken}
 
 
 @router.post('/password')
