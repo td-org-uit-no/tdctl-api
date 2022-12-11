@@ -50,13 +50,13 @@ def test_get_members(client):
 
     assert len(res_json) == len(seed_json)
 
-@authentication_required('api/member/', 'get')
+@authentication_required('api/member/{uuid}', 'get')
 def test_get_member_by_id(client):
     member = db.members.find_one({'email': regular_member["email"]})
     assert member
     access_token = client_login(client, regular_member['email'], regular_member['password'])
     headers = {"Authorization": f"Bearer {access_token}"}
-    response = client.get("/api/member/", headers=headers, data=member["id"])
+    response = client.get(f"/api/member/{member['id']}", headers=headers)
     assert response.status_code == 200
     res_json = response.json()
     assert res_json['email'] == regular_member['email']
