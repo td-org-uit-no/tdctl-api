@@ -1,11 +1,11 @@
 FROM python:3.8.9
 
 WORKDIR /app
-COPY . .
+COPY Pipfile .
 RUN pip3 install pipenv
 # ensure requirements.txt gets the newest packages
 RUN pipenv lock
 RUN pipenv requirements > requirements.txt
 
-RUN pip3 install --no-cache-dir -r requirements.txt
+RUN pip3 install -r requirements.txt
 CMD ["python3", "manage.py"]
