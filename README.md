@@ -32,7 +32,7 @@ You can either start up both the backend and mongodb locally, or you can run the
 ## 3.Testing :heavy_check_mark:
 The test are running on a test client who resets after every test. To create data available over multiple tests insert the seeding in the client instance in `conftest.py`
 ### 3.1 Running tests
-**:information_source: Make sure the mongodb server is running. To start the mongo server  run `mongod -f db.yml` in the db folder**
+**:information_source: Make sure the mongodb server is running. To start the mongo server run `mongod -f db.yml` in the db folder**
   * To run all tests: `pytest -rx`
   * To run a specific test: `pytest -rx <path to test file>`
 
@@ -40,7 +40,7 @@ See [pytest documentation](https://docs.pytest.org/en/7.2.x/) for more informati
 ### 3.2 Running tests in docker
 **To perfore tests when using docker, run the `pytest_docker.py` file from your shell and the script will execute the tests in the running container.**
 
-The script will pass all flsgs into the container, so it can be used in the same way as pytest i.e <br> 
+The script will pass all flags into the container, so it can be used in the same way as pytest i.e <br> 
 `python3 pytest_docker.py -s` will be the same as running `pytest -s`
 
   - **Requirements:**
