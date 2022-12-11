@@ -14,6 +14,7 @@ services:
       DB_HOSTNAME: td_mongodb
       DB_PORT: 26900
       TEST_DB_HOSTNAME: test_mongodb
+      FRONTEND_URL: www.frontend.com
     links:
       - mongodb
     depends_on:
