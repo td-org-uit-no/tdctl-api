@@ -15,9 +15,6 @@ def test_decorator_request_error_handling(client):
     # has to be in separate with or the test will pass when only one is throwing an exception 
     with pytest.raises(Exception):
         perform_request(client, "test", "post")
-    # check for 307 exception
-    with pytest.raises(Exception):
-        perform_request(client, "api/admin", "post")
 
 def test_admin_decorator(client):
     no_auth_path = "api/event/upcoming"
