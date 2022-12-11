@@ -118,7 +118,7 @@ def test_give_admin_privileges(client):
     assert response.status_code == 400
 
     # checks if the endpoint working as expected
-    response = client.post(f"api/admin/give-admin-privileges/{member['id']}", headers=headers, data="")
+    response = client.post(f"api/admin/give-admin-privileges/{member['id']}", headers=headers, content="")
     assert response.status_code == 201
     member = db.members.find_one({'email': member["email"]})
     assert member and member["role"] == "admin"
