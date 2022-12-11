@@ -7,6 +7,7 @@ class Config:
     MONGO_PORT: int
     MONGO_DBNAME: str
     MONGO_URI: str
+    FRONTEND_URL: str
 
 
 class DevelopmentConfig(Config):
@@ -16,6 +17,7 @@ class DevelopmentConfig(Config):
     MONGO_PORT = int(os.environ.get('DB_PORT') or 27018)
     MONGO_DBNAME = "tdctl"
     MONGO_URI = "mongodb://%s:%s/%s" % (MONGO_HOST, MONGO_PORT, MONGO_DBNAME)
+    FRONTEND_URL = os.environ.get('FRONTEND_URL')
 
 
 class ProductionConfig(Config):
@@ -25,6 +27,8 @@ class ProductionConfig(Config):
     MONGO_PORT = int(os.environ.get('DB_PORT') or 27017)
     MONGO_DBNAME = "tdctl"
     MONGO_URI = "mongodb://%s:%s/%s" % (MONGO_HOST, MONGO_PORT, MONGO_DBNAME)
+    FRONTEND_URL = os.environ.get('FRONTEND_URL')
+
 
 class TestConfig(Config):
     SECRET_KEY = "test"
@@ -33,6 +37,8 @@ class TestConfig(Config):
     MONGO_PORT = 27018
     MONGO_DBNAME = "test"
     MONGO_URI = "mongodb://%s:%s/%s" % (MONGO_HOST, MONGO_PORT, MONGO_DBNAME)
+    FRONTEND_URL = os.environ.get('FRONTEND_URL')
+
 
 config = {
     'development': DevelopmentConfig,
