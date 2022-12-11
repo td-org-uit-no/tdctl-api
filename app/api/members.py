@@ -4,24 +4,19 @@ from werkzeug.security import generate_password_hash
 from pymongo import ReturnDocument
 from typing import List
 from uuid import uuid4, UUID
+from .mail import send_mail
 
 from app.utils.validation import validate_uuid
 
-from ..models import Member, MemberInput, MemberUpdate, AccessTokenPayload
+from ..models import Member, MemberInput, MemberUpdate, AccessTokenPayload, MailPayload
 from ..auth_helpers import authorize, authorize_admin, role_required
 from ..db import get_database
 from ..utils import validate_password, passwordError
 
 router = APIRouter()
 
-
 @router.post('/')
 def create_new_member(request: Request, newMember: MemberInput):
-    '''
-        TODO:\n
-            - E-mail confirmation
-            - Currently returns a ConfirmationCode for development purposes
-    '''
     db = get_database(request)
     exists = db.members.find_one({'email': newMember.email.lower()})
     if exists:
@@ -48,7 +43,15 @@ def create_new_member(request: Request, newMember: MemberInput):
     db.confirmations.insert_one(
         {"confirmationCode": confirmationCode, 'user_id': member['id']}
     )
-    return confirmationCode
+    
+    # Send email to new user for verification
+    with open("./app/assets/mails/member_confirmation.txt", 'r') as mail_content:
+        confirmation_email = MailPayload(
+            to = [newMember.email],
+            subject = "Confirmaiton email",
+            content = mail_content.read().replace("$LINK$", f"{request.app.config.FRONTEND_URL}/confirmation/{confirmationCode}")
+        )
+    send_mail(confirmation_email)
 
 
 @router.get('/')
@@ -158,8 +161,17 @@ def generate_new_confirmation_code(request: Request, email: str):
     if not result:
         # An error occured when updating the user with the confirmation code
         raise HTTPException(500)
-    
-    return newConfirmationCode
+
+    # Send email to new user for verification
+    with open("./app/assets/mails/member_confirmation.txt", 'r') as mail_content:
+        confirmation_email = MailPayload(
+            to = [email],
+            subject = "Confirmaiton email",
+            content = mail_content.read().replace("$LINK$", f"www.{request.app.config.FRONTEND_URL}/confirmation/{newConfirmationCode}")
+        )
+    send_mail(confirmation_email)
+   
+    return Response(status_code=200)
 
 
 @router.put('/')
