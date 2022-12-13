@@ -132,6 +132,9 @@ class EventUpdate(BaseModel):
     description: Optional[str]
     maxParticipants: Optional[int]
     active: Optional[bool]
+    price: Optional[int]
+    transportation: Optional[bool]
+    food: Optional[bool]
 
 
 class Participant(BaseModel):
