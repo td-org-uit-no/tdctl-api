@@ -4,11 +4,12 @@ from werkzeug.security import generate_password_hash
 from pymongo import ReturnDocument
 from typing import List
 from uuid import uuid4, UUID
+from datetime import datetime
 from .mail import send_mail
 
 from app.utils.validation import validate_uuid
 
-from ..models import Member, MemberInput, MemberUpdate, AccessTokenPayload, MailPayload
+from ..models import Member, MemberInput, MemberUpdate, AccessTokenPayload, MailPayload, ForgotPasswordPayload
 from ..auth_helpers import authorize, authorize_admin, role_required
 from ..db import get_database
 from ..utils import validate_password, passwordError
@@ -160,19 +161,90 @@ def generate_new_confirmation_code(request: Request, email: str):
     if not result:
         # An error occured when updating the user with the confirmation code
         raise HTTPException(500)
-
     if request.app.config == 'production':
         # Send email to new user for verification
         with open("./app/assets/mails/member_confirmation.txt", 'r') as mail_content:
             confirmation_email = MailPayload(
                 to = [email],
                 subject = "Confirmaiton email",
-                content = mail_content.read().replace("$LINK$", f"www.{request.app.config.FRONTEND_URL}/confirmation/{newConfirmationCode}")
+                content = mail_content.read().replace("$LINK$", f"{request.app.config.FRONTEND_URL}/confirmation/{newConfirmationCode.hex}")
             )
         send_mail(confirmation_email)
    
     return Response(status_code=200)
 
+@router.post('/reset-password/code/{email}')
+def generate_new_reset_password_code(request: Request, email: str):
+    """
+    Generates a code that is mailed to the members registered email.
+    This code can then be used to verify the member in stead of a password.
+    """
+    NonExistentMemberError = HTTPException(
+        404, "A member with the given e-mail address does not exist"
+    )
+
+    db = get_database(request)
+    member = db.members.find_one({'email': email})
+
+    if not member:
+        # Member assoiciated with the email was not found
+        raise NonExistentMemberError
+    db.passwordResets.find_one_and_delete({'user_id': member['id']})
+
+    newCode = uuid4()
+    result = db.passwordResets.insert_one(
+        {"createdAt": datetime.utcnow(),"code": newCode, 'user_id': member['id']}
+    )
+    if not result:
+        # An error occured when updating the user with the confirmation code
+        raise HTTPException(500)
+
+    if request.app.config.ENV == 'production':
+        with open("./app/assets/mails/restore_password.txt", 'r') as mail_content:
+            resetPasswordEmail = MailPayload(
+                to = [email],
+                subject = "TD Website reset password",
+                content = mail_content.read().replace("$LINK$", f"{request.app.config.FRONTEND_URL}/reset-password/{newCode.hex}")
+            )
+        send_mail(resetPasswordEmail)
+
+    return Response(status_code=200)
+
+
+@router.post('/reset-password/')
+def reset_password(request: Request, newPasswordPayload : ForgotPasswordPayload ):
+    """
+    Resets password of member based on token from email.
+    """
+    NotMatchedError = HTTPException(
+        404, "Reset password token could not be matched")
+
+    if not validate_password(newPasswordPayload.newPassword):
+        raise HTTPException(400, passwordError)
+
+    db = get_database(request)
+
+    # Remove reset password token from database
+    passwordResetToken = db.passwordResets.find_one_and_delete(
+        {'code': UUID(newPasswordPayload.token)})
+    if not passwordResetToken:
+        raise NotMatchedError
+
+    # Generate hash of new password
+    pwd = generate_password_hash(newPasswordPayload.newPassword)
+
+    # Update member with new hash
+    user = db.members.find_one_and_update(
+        {'id': passwordResetToken['user_id']},
+        {"$set":
+         {'password': pwd}
+         },
+        return_document=ReturnDocument.AFTER)
+    if not user:
+        # User associated with reset password token does not exist.
+        raise NotMatchedError
+
+    return Response(status_code=200)
 
 @router.put('/')
 def update_member(request: Request, memberData: MemberUpdate, token: AccessTokenPayload = Depends(authorize)):

@@ -173,6 +173,9 @@ class ChangePasswordPayload(BaseModel):
     password: str
     newPassword: str
 
+class ForgotPasswordPayload(BaseModel):
+    token: str
+    newPassword: str
 
 class JoinEventPayload(BaseModel):
     food: Optional[bool]
