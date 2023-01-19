@@ -3,6 +3,7 @@ from uuid import UUID, uuid4
 from pymongo import MongoClient
 from werkzeug.security import generate_password_hash
 from app import config
+from app.models import EventDB
 import json
 import os
 import shutil
@@ -29,7 +30,7 @@ def seed_random_member(db, number):
         if db_member:
             id += 1
             continue
-        uid = uuid4().hex
+        uid = uuid4()
         pwd = generate_password_hash(f'{name}%{id}')
         user = {
             'id': uid,
@@ -56,7 +57,7 @@ def seed_members(db, seed_path):
         if db_member:
             continue
         new_members.append(member)
-        member["id"] = uuid4().hex
+        member["id"] = uuid4()
     if len(new_members):
         db["members"].insert_many(new_members)
 
@@ -67,7 +68,6 @@ def seed_events(db, seed_path):
         events = json.load(f)
 
     for event in events:
-        event["eid"] = UUID(event["eid"]).hex
         db_event = db.events.find_one({'eid': event["eid"]})
         if db_event:
             continue
@@ -77,7 +77,6 @@ def seed_events(db, seed_path):
             member.pop("graduated")
             member.pop("password")
             member.pop("_id")
-            member['id'] = UUID(member['id']).hex
             member['food'] = random.choices(
                 bool_list, weights=[0.8, 0.2])[0]
 
@@ -101,13 +100,14 @@ def seed_events(db, seed_path):
             pass
 
         event["date"] = datetime.strptime(event['date'], "%Y-%m-%d %H:%M:%S")
-        db["events"].insert_one(event)
+        parsed_event = EventDB.parse_obj(event)
+        db["events"].insert_one(parsed_event.dict())
 
 
 def get_db():
     env = os.getenv('FLASK_APP_ENV', 'default')
     conf = config[env]
-    return MongoClient(conf.MONGO_URI)[conf.MONGO_DBNAME]
+    return MongoClient(conf.MONGO_URI, uuidRepresentation="standard")[conf.MONGO_DBNAME]
 
 
 if __name__ == "__main__":
