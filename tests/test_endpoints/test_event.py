@@ -64,7 +64,7 @@ def test_create_event(client):
     response = client.post("/api/event/", json=new_event, headers=headers)
     assert response.status_code == 200
     res_json = response.json()
-    event = db.events.find_one({'eid': res_json["eid"]})
+    event = db.events.find_one({'eid': UUID(res_json["eid"])})
     assert event != None
 
 
@@ -90,7 +90,7 @@ def test_update_event(client):
         f"/api/event/{eid}", json=update_field, headers=headers)
     assert response.status_code == 200
 
-    event = db.events.find_one({'eid': eid})
+    event = db.events.find_one({'eid': UUID(eid)})
     assert event and event["title"] == update_field["title"]
 
 
@@ -168,7 +168,7 @@ def test_get_event_participants(client):
         f'/api/event/{non_existing_eid}/participants', headers=headers)
     assert response.status_code == 404
 
- # Check !admin
+    # Check !admin
     response = client.get(f'/api/event/{eid}/participants', headers=headers)
     res_json = response.json()
     assert response.status_code == 200

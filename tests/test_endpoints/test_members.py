@@ -82,7 +82,7 @@ def test_get_member_by_email(client):
     response = client.get(f"/api/member/email/{member['email']}", headers=headers)
     assert response.status_code == 200
     res = response.json()
-    assert res["id"] == member["id"]
+    assert res["id"] == member["id"].hex
 
 @authentication_required('api/member/', 'put')
 def test_update_member(client):
