@@ -47,8 +47,6 @@ def test_create_admin(client):
 @admin_required("/api/admin/member/{uuid}", "PUT")
 def test_admin_update_member(client):
     update_value = {"classof": "2016"}
-    member = db.members.find_one({'email': regular_member["email"]})
-    assert member
 
     member = db.members.find_one({'email': regular_member["email"]})
     assert member and update_value["classof"] != member["classof"]
@@ -57,7 +55,7 @@ def test_admin_update_member(client):
     access_token = client_login(client, admin_member["email"], admin_member["password"])
     headers = {"Authorization": f"Bearer {access_token}"}
 
-    response = client.put(f"/api/admin/member/{member['id']}", headers=headers, json=update_value)
+    response = client.put(f"/api/admin/member/{member['id'].hex}", headers=headers, json=update_value)
     assert response.status_code == 201
 
     member = db.members.find_one({'email': regular_member["email"]})
@@ -72,7 +70,7 @@ def test_admin_update_member(client):
     admin = db.members.find_one({'email': second_admin["email"]})
     assert admin
 
-    response = client.put(f"/api/admin/member/{admin['id']}", headers=headers, json=update_value)
+    response = client.put(f"/api/admin/member/{admin['id'].hex}", headers=headers, json=update_value)
     assert response.status_code == 403
 
     admin = db.members.find_one({'email': second_admin["email"]})
@@ -100,7 +98,7 @@ def test_delete_user(client):
     # checks expected behavior
     response = client.delete(f"/api/admin/member/{member['id']}", headers=headers)
     assert response.status_code == 200
-    assert db.members.find_one('id', member["id"]) == None
+    assert db.members.find_one({'id': member["id"]}) == None
 
 @admin_required("api/admin/give-admin-privileges/{uuid}", "post")
 def test_give_admin_privileges(client):

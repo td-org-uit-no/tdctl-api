@@ -21,7 +21,7 @@ def app():
 # The db resets after every test
 @pytest.fixture
 def client(app):
-    mongo_client = MongoClient(app.config.MONGO_URI)
+    mongo_client = MongoClient(app.config.MONGO_URI, uuidRepresentation="standard")
     # change the fastapi db to the test database
     app.db = mongo_client[app.config.MONGO_DBNAME]
     # safty check asserting we only clear our test database
