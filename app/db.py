@@ -17,7 +17,7 @@ def get_export_path(request: Request) -> str:
 
 
 def setup_db(app):
-    app.db = MongoClient(app.config.MONGO_URI)[app.config.MONGO_DBNAME]
+    app.db = MongoClient(app.config.MONGO_URI, uuidRepresentation="standard")[app.config.MONGO_DBNAME]
     app.export_path = 'db/eventExports/'
     if app.config.MONGO_DBNAME == 'test':
         app.image_path = 'db/testEventImages'
@@ -27,4 +27,4 @@ def setup_db(app):
 
 def get_test_db():
     test_config = config['test']
-    return MongoClient(test_config.MONGO_URI)[test_config.MONGO_DBNAME]
+    return MongoClient(test_config.MONGO_URI, uuidRepresentation="standard")[test_config.MONGO_DBNAME]
