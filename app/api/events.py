@@ -29,7 +29,7 @@ def create_event(request: Request, newEvent: EventInput, token: AccessTokenPaylo
     if event_date < datetime.now():
         raise HTTPException(400, "Invalid date")
 
-    eid = uuid4().hex
+    eid = uuid4()
     additionalFields = {
         'eid': eid,
         'participants': [],
@@ -41,7 +41,7 @@ def create_event(request: Request, newEvent: EventInput, token: AccessTokenPaylo
 
     event = db.events.insert_one(event)
 
-    return {'eid': eid}
+    return {'eid': eid.hex}
 
 
 @router.get('/')
@@ -114,7 +114,7 @@ def update_event(request: Request, id: str, eventUpdate: EventUpdate, AccessToke
             raise HTTPException(400, "Invalid date")
 
     result = db.events.find_one_and_update(
-        {'eid': UUID(id).hex},
+        {'eid': UUID(id)},
         {"$set": values})
 
     if result == None:
@@ -145,13 +145,13 @@ def get_event_participants(request: Request, id: str, token: AccessTokenPayload 
 def join_event(request: Request, id: str, payload: JoinEventPayload, token: AccessTokenPayload = Depends(authorize)):
     db = get_database(request)
     event = get_event_or_404(db, id)
-    member = db.members.find_one({'id': token.user_id})
+    member = db.members.find_one({'id': UUID(token.user_id)})
 
     if not member:
         raise HTTPException(400, "User could not be found")
 
     check_participant = db.events.find_one({"eid": event["eid"]}, {"participants": {
-        "$elemMatch": {"id": token.user_id}}})
+        "$elemMatch": {"id": member["id"]}}})
 
     try:
         check_participant['participants']
@@ -168,7 +168,6 @@ def join_event(request: Request, id: str, payload: JoinEventPayload, token: Acce
 
     new_fields = {**member, **participantData}
     participant = Participant.parse_obj(new_fields)
-    participant.id = token.user_id  # Necessary cast to get id on correct format
 
     db.events.update_one({'eid': event['eid']}, {
         "$addToSet": {"participants": participant.dict()}})
@@ -184,13 +183,13 @@ def join_event(request: Request, id: str, payload: JoinEventPayload, token: Acce
 def leave_event(request: Request, id: str, token: AccessTokenPayload = Depends(authorize)):
     db = get_database(request)
     event = get_event_or_404(db, id)
-    member = db.members.find_one({'id': token.user_id})
+    member = db.members.find_one({'id': UUID(token.user_id)})
 
     if not member:
         raise HTTPException(400, "User could not be found")
 
     participant = db.events.find_one({"eid": event["eid"]}, {"participants": {
-        "$elemMatch": {"id": token.user_id}}})
+        "$elemMatch": {"id": member["id"]}}})
 
     if not participant:
         raise HTTPException(400, "User not joined event!")
@@ -216,7 +215,7 @@ def is_joined_event(request: Request, id: str, token: AccessTokenPayload = Depen
 
     # uses event["eid"] instead of casting eid -> UUID
     user = db.events.find_one({"eid": event["eid"]}, {"participants": {
-        "$elemMatch": {"id": token.user_id}}})
+        "$elemMatch": {"id": UUID(token.user_id)}}})
 
     if not user:
         return {'joined': False}
@@ -232,13 +231,13 @@ def is_joined_event(request: Request, id: str, token: AccessTokenPayload = Depen
 def remove_participant(request: Request, id: str, uid: str, token: AccessTokenPayload = Depends(authorize_admin)):
     db = get_database(request)
     event = get_event_or_404(db, id)
-    member = db.members.find_one({'id': UUID(uid).hex})
+    member = db.members.find_one({'id': UUID(uid)})
 
     if not member:
         raise HTTPException(400, "User could not be found")
 
     participant = db.events.find_one({"eid": event["eid"]}, {"participants": {
-        "$elemMatch": {"id": UUID(uid).hex}}})
+        "$elemMatch": {"id": member["id"]}}})
 
     if not participant:
         raise HTTPException(400, "User not joined event!")
@@ -249,7 +248,7 @@ def remove_participant(request: Request, id: str, uid: str, token: AccessTokenPa
         raise HTTPException(400, "User not joined event!")
 
     db.events.update_one({'eid': event['eid']}, {
-                         "$pull": {"participants": {"id": UUID(uid).hex}}})
+                         "$pull": {"participants": {"id": member["id"]}}})
 
     return Response(status_code=200)
 

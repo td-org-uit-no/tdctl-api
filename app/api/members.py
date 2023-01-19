@@ -24,7 +24,7 @@ def create_new_member(request: Request, newMember: MemberInput):
     if not validate_password(newMember.password):
         raise HTTPException(400, passwordError)
     pwd = generate_password_hash(newMember.password)
-    uid = uuid4().hex
+    uid = uuid4()
     additionalFields = {
         'id': uid,
         'email': newMember.email.lower(),  # Lowercase e-mail
@@ -39,25 +39,25 @@ def create_new_member(request: Request, newMember: MemberInput):
     db.members.insert_one(member)
 
     # Create confirmation code
-    confirmationCode = uuid4().hex
+    confirmationCode = uuid4()
     db.confirmations.insert_one(
         {"confirmationCode": confirmationCode, 'user_id': member['id']}
     )
     
-    # Send email to new user for verification
-    with open("./app/assets/mails/member_confirmation.txt", 'r') as mail_content:
-        confirmation_email = MailPayload(
-            to = [newMember.email],
-            subject = "Confirmaiton email",
-            content = mail_content.read().replace("$LINK$", f"{request.app.config.FRONTEND_URL}/confirmation/{confirmationCode}")
-        )
-    send_mail(confirmation_email)
-
+    if request.app.config == 'production':
+        # Send email to new user for verification
+        with open("./app/assets/mails/member_confirmation.txt", 'r') as mail_content:
+            confirmation_email = MailPayload(
+                to = [newMember.email],
+                subject = "Confirmaiton email",
+                content = mail_content.read().replace("$LINK$", f"{request.app.config.FRONTEND_URL}/confirmation/{confirmationCode.hex}")
+            )
+        send_mail(confirmation_email)
 
 @router.get('/')
 def get_member_associated_with_token(request: Request, token: AccessTokenPayload = Depends(authorize)):
     db = get_database(request)
-    currentMember = db.members.find_one({'id': token.user_id})
+    currentMember = db.members.find_one({'id': UUID(token.user_id)})
     if not currentMember:
         raise HTTPException(404, "User could not be found")
     return Member.parse_obj(currentMember)
@@ -67,8 +67,7 @@ def get_member_associated_with_token(request: Request, token: AccessTokenPayload
 def get_member_by_id(request: Request, id: str, token: dict = Depends(authorize)):
     '''Returns a user object associated with id passed in'''
     db = get_database(request)
-    # removes dashes
-    member = db.members.find_one({'id': UUID(id).hex})
+    member = db.members.find_one({'id': UUID(id)})
     if not member:
         raise HTTPException(404, 'Member not found')
     return Member.parse_obj(member)
@@ -79,7 +78,7 @@ def get_member_by_email(request: Request, email: EmailStr, token: AccessTokenPay
     member = db.members.find_one({'email': email.lower()})
     if not member:
         raise HTTPException(404, 'Member not found')
-    return {'id': member['id']}
+    return {'id': member['id'].hex}
 
 @router.get("s/", response_model=List[Member])
 def get_all_members(request: Request, token: AccessTokenPayload = Depends(authorize)):
@@ -92,11 +91,11 @@ def get_all_members(request: Request, token: AccessTokenPayload = Depends(author
 def change_status(request: Request, token: AccessTokenPayload = Depends(authorize)):
     '''Sets the member status to active'''
     db = get_database(request)
-    member = db.members.find_one({'id': token.user_id})
+    member = db.members.find_one({'id': UUID(token.user_id)})
     if not member:
         raise HTTPException(404, 'Member not found')
     result = db.members.find_one_and_update(
-        {'id': token.user_id},
+        {'id': member["id"]},
         {"$set": {'status': 'active'}}
     )
     if not result:
@@ -111,7 +110,7 @@ def confirm_email(request: Request, code: str):
         404, "Confirmation token could not be matched")
     db = get_database(request)
     validated = db.confirmations.find_one_and_delete(
-        {'confirmationCode': code})
+        {'confirmationCode': UUID(code)})
     if not validated:
         raise NotMatchedError
 
@@ -150,26 +149,27 @@ def generate_new_confirmation_code(request: Request, email: str):
         raise MemberAlreadyConfirmedError
 
 
-    # delete existing activation code associated with member
-    db.confirmations.find_one_and_delete({'id': member['id']})
-    
-    newConfirmationCode = uuid4().hex
-    result = db.confirmations.insert_one(
-        {"confirmationCode": newConfirmationCode, 'user_id': member['id']}
-    )
+    newConfirmationCode = uuid4()
+
+    result = db.confirmations.find_one_and_update(
+            {'user_id': member['id']}, 
+            {"$set": 
+                { "confirmationCode": newConfirmationCode }
+            })
 
     if not result:
         # An error occured when updating the user with the confirmation code
         raise HTTPException(500)
 
-    # Send email to new user for verification
-    with open("./app/assets/mails/member_confirmation.txt", 'r') as mail_content:
-        confirmation_email = MailPayload(
-            to = [email],
-            subject = "Confirmaiton email",
-            content = mail_content.read().replace("$LINK$", f"www.{request.app.config.FRONTEND_URL}/confirmation/{newConfirmationCode}")
-        )
-    send_mail(confirmation_email)
+    if request.app.config == 'production':
+        # Send email to new user for verification
+        with open("./app/assets/mails/member_confirmation.txt", 'r') as mail_content:
+            confirmation_email = MailPayload(
+                to = [email],
+                subject = "Confirmaiton email",
+                content = mail_content.read().replace("$LINK$", f"www.{request.app.config.FRONTEND_URL}/confirmation/{newConfirmationCode}")
+            )
+        send_mail(confirmation_email)
    
     return Response(status_code=200)
 
@@ -177,8 +177,8 @@ def generate_new_confirmation_code(request: Request, email: str):
 @router.put('/')
 def update_member(request: Request, memberData: MemberUpdate, token: AccessTokenPayload = Depends(authorize)):
     db = get_database(request)
-    user = db.members.find_one({'id': token.user_id})
-    if not user:
+    member = db.members.find_one({'id': UUID(token.user_id)})
+    if not member:
         raise HTTPException(404, "User not found")
 
     values = memberData.dict()
@@ -191,7 +191,7 @@ def update_member(request: Request, memberData: MemberUpdate, token: AccessToken
         return HTTPException(400)
 
     result = db.members.find_one_and_update(
-        {'id': token.user_id},
+        {'id': member["id"]},
         {"$set": updateInfo})
 
     if not result:
