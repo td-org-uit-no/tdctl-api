@@ -1,3 +1,4 @@
+from uuid import UUID
 from fastapi import APIRouter, Request, Response, HTTPException, Depends
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -45,7 +46,7 @@ def renew(request: Request, refreshToken: RefreshToken):
 
     if is_blacklisted(tokenPayload, request.app.db):
         raise HTTPException(401, 'Refresh token is blacklisted')
-    user = request.app.db.members.find_one({'id': tokenPayload.user_id})
+    user = request.app.db.members.find_one({'id': UUID(tokenPayload.user_id)})
     if not user:
         # Edge case
         raise HTTPException(
@@ -60,7 +61,7 @@ def renew(request: Request, refreshToken: RefreshToken):
 @router.post('/password')
 def change_password(passwords: ChangePasswordPayload, request: Request, token: AccessTokenPayload = Depends(authorize)):
     db = get_database(request)
-    user = MemberDB.parse_obj(db.members.find_one({'id': token.user_id}))
+    user = MemberDB.parse_obj(db.members.find_one({'id': UUID(token.user_id)}))
     if not user:
         raise HTTPException(401, 'User not found')
 
@@ -72,7 +73,7 @@ def change_password(passwords: ChangePasswordPayload, request: Request, token: A
 
     new_password = generate_password_hash(passwords.newPassword)
     result = db.members.find_one_and_update(
-        {'id': token.user_id},
+        {'id': user.id},
         {"$set": {'password': new_password}})
 
     if not result:

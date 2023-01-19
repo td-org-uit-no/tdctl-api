@@ -12,16 +12,17 @@ router = APIRouter()
 @router.post('/give-admin-privileges/{id}', dependencies=[Depends(validate_uuid)])
 def give_existing_user_admin_privileges(request: Request, id: str, token: AccessTokenPayload = Depends(authorize_admin)):
     db = get_database(request)
-    id = UUID(id).hex
+    uuid = UUID(id)
 
-    user = db.members.find_one({'id': id})
-    if not user:
+    member = db.members.find_one({'id': uuid})
+    if not member:
         raise HTTPException(404, "User not found")
 
-    if user["role"] == "admin":
+    if member["role"] == "admin":
         raise HTTPException(400, "User already admin")
     
-    results = db.members.find_one_and_update({'id': id}, {'$set': {'role': 'admin'}})
+    results = db.members.find_one_and_update({'id': member["id"]}, {'$set': {'role': 'admin'}})
+
     if not results:
         raise HTTPException(500)
     return Response(status_code=201)
@@ -36,7 +37,7 @@ def create_admin_user(request: Request, newAdmin: MemberInput, token: AccessToke
         raise HTTPException(400, passwordError)
     pwd = generate_password_hash(newAdmin.password)
 
-    uid = uuid4().hex
+    uid = uuid4()
     additionalFields = {
         'id': uid,
         'email': newAdmin.email.lower(),  # Lowercase e-mail
@@ -57,10 +58,9 @@ def create_admin_user(request: Request, newAdmin: MemberInput, token: AccessToke
     )
     return Response(status_code=201)
 
-@router.put('/member/{id}')
+@router.put('/member/{id}', dependencies=[Depends(validate_uuid)])
 def update_member(request: Request, id: str, memberData: AdminMemberUpdate, token: AccessTokenPayload = Depends(authorize_admin)):
     db = get_database(request)
-    id = UUID(id).hex
 
     values = memberData.dict()
     updateInfo = {}
@@ -71,16 +71,16 @@ def update_member(request: Request, id: str, memberData: AdminMemberUpdate, toke
     if not updateInfo:
         return HTTPException(400)
 
-    user = db.members.find_one({'id': id})
+    member = db.members.find_one({'id': UUID(id)})
 
-    if not user:
+    if not member:
         raise HTTPException(404, "User not found")
 
-    if user["role"] == "admin":
+    if member["role"] == "admin":
         raise HTTPException(403, "Admin cannot update another admin")
 
     result = db.members.find_one_and_update(
-        {'id': id}, 
+        {'id': member["id"]}, 
         {"$set": updateInfo})
 
     if not result:
@@ -93,8 +93,7 @@ def update_member(request: Request, id: str, memberData: AdminMemberUpdate, toke
 @router.delete('/member/{id}', dependencies=[Depends(validate_uuid)])
 def delete_member(request: Request, id: str, token: AccessTokenPayload = Depends(authorize_admin)):
     db = get_database(request)
-    id = UUID(id).hex
-    member = db.members.find_one({'id': id})
+    member = db.members.find_one({'id': UUID(id)})
 
     if not member:
         raise HTTPException(404, "User not found")
@@ -102,7 +101,7 @@ def delete_member(request: Request, id: str, token: AccessTokenPayload = Depends
     if member["role"] == "admin":
         raise HTTPException(403, "Admin cannot delete another admin")
 
-    result = db.members.find_one_and_delete({'id': id})
+    result = db.members.find_one_and_delete({'id': member["id"]})
 
     if not result:
         raise HTTPException(500)

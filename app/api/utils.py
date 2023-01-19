@@ -2,8 +2,7 @@ from fastapi import HTTPException
 from uuid import UUID
 
 def get_event_or_404(db, eid: str):
-    eid = UUID(eid).hex
-    event = db.events.find_one({'eid': eid})
+    event = db.events.find_one({'eid': UUID(eid)})
 
     if not event:
         raise HTTPException(404, "Event could not be found")
