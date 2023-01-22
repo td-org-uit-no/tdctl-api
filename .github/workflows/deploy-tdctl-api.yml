@@ -1,4 +1,4 @@
-name: Deploy on dev.td.org.uit.no
+name: Deploy on prod.td.org.uit.no
 
 # Ignore error below
 on:
@@ -14,7 +14,7 @@ jobs:
       - name: SSH into server and launching update script
         uses: appleboy/ssh-action@master
         with:
-          host: dev.td.org.uit.no
-          username: ${{ secrets.DEV_SERVER_USERNAME }}
-          password: ${{ secrets.DEV_SERVER_PASSWORD }}
+          host: prod.td.org.uit.no
+          username: ${{ secrets.PROD_SERVER_USERNAME }}
+          password: ${{ secrets.PROD_SERVER_PASSWORD }}
           script: ./pull-latest-api.sh
