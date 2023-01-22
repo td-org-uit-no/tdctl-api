@@ -37,7 +37,7 @@ def create_app():
 
     
     # Fetch config object
-    env = os.getenv('FLASK_APP_ENV', 'default')
+    env = os.getenv('API_ENV', 'default')
     app.config = config[env]
     
     setup_db(app)
