@@ -25,10 +25,17 @@ class ProductionConfig(Config):
     ENV = 'production'
     MONGO_HOST = os.environ.get('DB_HOSTNAME') or ''
     MONGO_PORT = int(os.environ.get('DB_PORT') or 27017)
-    MONGO_DBNAME = "tdctl"
-    MONGO_URI = "mongodb://%s:%s/%s" % (MONGO_HOST, MONGO_PORT, MONGO_DBNAME)
+    MONGO_DBNAME = os.environ.get('DB')
+    DB_USER = os.environ.get('DB_USER')
+    DB_PASSWORD = os.environ.get('DB_PASSWORD')
+    try :
+        del os.environ['DB_USER']
+        del os.environ['DB_PASSWORD']
+    except KeyError:
+        # for CI test when env variables are not set
+        pass
+    MONGO_URI = "mongodb://%s:%s@%s:%s" % (DB_USER, DB_PASSWORD, MONGO_HOST, MONGO_PORT)
     FRONTEND_URL = os.environ.get('FRONTEND_URL') or "localhost:3000"
-
 
 class TestConfig(Config):
     SECRET_KEY = "test"
