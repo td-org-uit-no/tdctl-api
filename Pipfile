@@ -28,4 +28,4 @@ numpy = "1.23.5"
 openpyxl = "3.0.9"
 xlsxwriter = "3.0.3"
 [requires]
-python_version = "3.8"
+python_version = "3.9"

@@ -1,8 +1,12 @@
-FROM python:3.8.9
+FROM python:3.9
 
 WORKDIR /app
+
 COPY Pipfile .
+COPY Pipfile.lock .
+
 RUN pip3 install pipenv
+
 # ensure requirements.txt gets the newest packages
 RUN pipenv lock
 RUN pipenv requirements > requirements.txt
