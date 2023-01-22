@@ -105,7 +105,7 @@ def seed_events(db, seed_path):
 
 
 def get_db():
-    env = os.getenv('FLASK_APP_ENV', 'default')
+    env = os.getenv('API_ENV', 'default')
     conf = config[env]
     return MongoClient(conf.MONGO_URI, uuidRepresentation="standard")[conf.MONGO_DBNAME]
 

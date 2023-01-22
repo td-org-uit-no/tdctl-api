@@ -14,7 +14,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 def app():
     from app import create_app
     app.config = config['test']
-    os.environ["FLASK_APP_ENV"] = 'test'
+    os.environ["API_ENV"] = 'test'
     return create_app()
 
 # create a test client using a test database for testing
