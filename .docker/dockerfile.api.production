@@ -1,12 +1,21 @@
-FROM python:3.8 as Build
+FROM python:3.9 as Build
 
-WORKDIR /var/www/
+# creates production user
+RUN useradd --create-home prod_user
+# block access to root user completely i.e no privileges escalation
+RUN chsh -s /usr/sbin/nologin root
+USER prod_user
 
-ADD . /var/www/
+WORKDIR /home/prod_user
 
-RUN pip3 install pipenv
+ADD . .
+
+# add prod_user to path 
+ENV PATH="/home/prod_user/.local/bin:${PATH}"
+
+RUN pip3 install --user pipenv
 # ensure requirements.txt gets the newest packages
 RUN pipenv lock
 RUN pipenv requirements > requirements.txt
-RUN pip install -r requirements.txt
+RUN pip install --user -r requirements.txt
 CMD ["uvicorn", "manage:app", "--host", "0.0.0.0", "--port", "5000"]

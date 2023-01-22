@@ -2,33 +2,44 @@ version: "3.5"
 services:
   tdctl_api:
     image: ghcr.io/td-org-uit-no/tdctl-api/tdctl-api:latest
+    container_name: tdctl-api-production
     build:
       context: ../
       dockerfile: .docker/dockerfile.api.production
     volumes:
-      - ../db/seeds:/var/www/db/seeds
-      - ../db/eventImages:/var/www/db/eventImages
-      - ../db/eventExports:/var/www/db/eventExports
-        # mount .config as mail credentials cannot be on github
-      - ../.config:/var/www/.config
+      - ../db/seeds:/home/prod_user/db/seeds
+      - ../db/eventImages:/home/prod_user/db/eventImages
+      - ../db/eventExports:/home/prod_user/db/eventExports
+      # mount .config as mail credentials cannot be on github
+      - ../.config:/home/prod_user/.config
     environment:
-      FLASK_APP_ENV: production
-      DB_HOSTNAME: mongodb
-      DB_PORT: 27017
-      SECRET_KEY: thisisverysecret
+      API_ENV: production
+      DB_USER: ${MONGODB_USER}
+      DB_PASSWORD: ${MONGODB_PASSWORD}
+      DB_HOSTNAME: ${HOSTNAME}
+      DB_PORT: ${PORT}
+      DB: ${DATABASE}
     networks:
       - frontend
       - backend
+    # provents processes from gaining additional privileges
+    security_opt:
+      - no-new-privileges:true
 
   mongodb:
+    hostname: ${HOSTNAME}
     image: mongo:latest
     restart: unless-stopped
+    environment:
+        - MONGO_INITDB_ROOT_USERNAME=${MONGODB_USER}
+        - MONGO_INITDB_ROOT_PASSWORD=${MONGODB_PASSWORD}
+        - MONGO_INITDB_DATABASE=${DATABASE}
+    command: mongod --auth --port ${PORT}
     volumes:
       - ../db/db_data:/data/db
-    environment:
-      MONGO_INITDB_DATABASE: tdctl
     networks:
       - backend
+
   nginx:
     build:
       context: ../
