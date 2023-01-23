@@ -45,7 +45,7 @@ def create_new_member(request: Request, newMember: MemberInput):
         {"confirmationCode": confirmationCode, 'user_id': member['id']}
     )
     
-    if request.app.config == 'production':
+    if request.app.config.ENV == 'production':
         # Send email to new user for verification
         with open("./app/assets/mails/member_confirmation.txt", 'r') as mail_content:
             confirmation_email = MailPayload(
@@ -161,7 +161,7 @@ def generate_new_confirmation_code(request: Request, email: str):
     if not result:
         # An error occured when updating the user with the confirmation code
         raise HTTPException(500)
-    if request.app.config == 'production':
+    if request.app.config.ENV == 'production':
         # Send email to new user for verification
         with open("./app/assets/mails/member_confirmation.txt", 'r') as mail_content:
             confirmation_email = MailPayload(
