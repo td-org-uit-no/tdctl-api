@@ -16,7 +16,7 @@ def get_file_type(content_type: str):
     return res
 
 def validate_password(password:str) -> bool:
-    regexp = r"^(?=.*[a-z\æøå])(?=.*[A-Z\ÆØÅ])(?=.*\d)(?=.*[@$!%*?&])[A-Z\ÆØÅa-z\æøå\d@$!%*?&]{8,}$"
+    regexp = r"^(?=.*[a-z\æøå])(?=.*[A-Z\ÆØÅ])(?=.*\d)(?=.*[!-/:-@[-`{-~])[A-Z\ÆØÅa-z\æøå\d!-/:-@[-`{-~]{8,}$"
     if not re.findall(regexp, password):
         return False
 
