@@ -42,6 +42,7 @@ def seed_random_member(db, number):
             'status': 'inactive',
             'classof': random.choice(classof_list),
             'graduated': False,
+            'penalty': 0,
         }
         db.members.insert_one(user)
         i += 1
@@ -63,11 +64,14 @@ def seed_members(db, seed_path):
 
 
 def seed_events(db, seed_path):
-
+    db_member = db.members.find_one({"role": "admin"})
+    responsible_member = db_member["email"]
+    
     with open(seed_path, "r") as f:
         events = json.load(f)
 
     for event in events:
+        event["host"] = responsible_member
         db_event = db.events.find_one({'eid': event["eid"]})
         if db_event:
             continue
@@ -112,6 +116,6 @@ def get_db():
 
 if __name__ == "__main__":
     db = get_db()
-    seed_random_member(db, 100)
+    seed_random_member(db, 10)
     seed_members(db, f"{base_dir}/members.json")
     seed_events(db, f"{base_dir}/events.json")

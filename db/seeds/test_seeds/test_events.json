@@ -12,7 +12,9 @@
     "posts": [],
     "food": false,
     "transportation": false,
-    "active": true
+    "public": true,
+    "bindingRegistration": true,
+    "registeredPenalties": []
   },
   {
     "eid": "b6714a37d23f4263a130301551a66033",
@@ -27,6 +29,8 @@
     "posts": [],
     "food": true,
     "transportation": false,
-    "active": true
+    "public": true,
+    "bindingRegistration": false,
+    "registeredPenalties": []
   }
 ]

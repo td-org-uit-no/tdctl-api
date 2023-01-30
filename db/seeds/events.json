@@ -13,7 +13,9 @@
     "posts": [],
     "transportation": true,
     "food": true,
-    "active": false
+    "public": false,
+    "bindingRegistration": true,
+    "registeredPenalties": []
   },
   {
     "eid": "4392615fecd0491e9666566f04c51d9c",
@@ -29,7 +31,9 @@
     "posts": [],
     "transportation": false,
     "food": false,
-    "active": true
+    "public": true,
+    "bindingRegistration": true,
+    "registeredPenalties": []
   },
   {
     "eid": "b70dcae276834ca78f457e47d1036cfb",
@@ -45,6 +49,9 @@
     "posts": [],
     "transportation": false,
     "food": true,
-    "active": true
+    "public": true,
+    "bindingRegistration": true,
+    "registrationOpeningDate": "2023-04-15 16:30:00",
+    "registeredPenalties": []
   }
 ]
