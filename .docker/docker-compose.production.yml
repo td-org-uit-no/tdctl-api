@@ -19,6 +19,7 @@ services:
       DB_HOSTNAME: ${HOSTNAME}
       DB_PORT: ${PORT}
       DB: ${DATABASE}
+      SECRET_KEY: ${SECRET_KEY}
     networks:
       - frontend
       - backend
