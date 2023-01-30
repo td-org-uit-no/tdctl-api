@@ -11,6 +11,7 @@ from .config import Config
 from .models import MemberDB, RefreshTokenPayload, AccessTokenPayload
 
 security_scheme = HTTPBearer()
+optional_security = HTTPBearer(auto_error=False)
 
 SCOPES = ['https://www.googleapis.com/auth/gmail.compose']
 KEY_PATH = '.config/mail_credentials.json'
@@ -46,6 +47,14 @@ def authorize(request: Request, token: HTTPAuthorizationCredentials = Depends(se
             401, 'The token is not an access token. Is this a refresh token?')
     return payload
 
+def optional_authentication(request: Request, token: HTTPAuthorizationCredentials = Depends(optional_security)):
+    '''
+    Allows login to be optional, and if token is provided parse it using authorize. This gives the possibility for endpoints 
+    to change behavior based on the user being logged in or not
+    '''
+    if token:
+        return authorize(request, token)
+    return None
 
 def role_required(accessToken: AccessTokenPayload, role: str):
     if accessToken.role != role:

@@ -32,6 +32,7 @@ def create_new_member(request: Request, newMember: MemberInput):
         'password': pwd,
         'role': 'unconfirmed',
         'status': 'inactive',
+        'penalty': 0
     }
 
     member = newMember.dict()
@@ -161,6 +162,7 @@ def generate_new_confirmation_code(request: Request, email: str):
     if not result:
         # An error occured when updating the user with the confirmation code
         raise HTTPException(500)
+
     if request.app.config.ENV == 'production':
         # Send email to new user for verification
         with open("./app/assets/mails/member_confirmation.txt", 'r') as mail_content:
@@ -170,7 +172,6 @@ def generate_new_confirmation_code(request: Request, email: str):
                 content = mail_content.read().replace("$LINK$", f"{request.app.config.FRONTEND_URL}/confirmation/{newConfirmationCode.hex}")
             )
         send_mail(confirmation_email)
-   
     return Response(status_code=200)
 
 @router.post('/reset-password/code/{email}')
@@ -270,3 +271,4 @@ def update_member(request: Request, memberData: MemberUpdate, token: AccessToken
         raise HTTPException(500)
 
     return Response(status_code=201)
+

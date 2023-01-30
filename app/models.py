@@ -1,7 +1,9 @@
 from typing import Optional, List
 from pydantic import BaseModel, EmailStr, UUID4
-from datetime import datetime
+from datetime import datetime, timedelta
+from pydantic.datetime_parse import parse_datetime
 
+from pydantic.fields import Field
 
 class MailPayload(BaseModel):
     """
@@ -71,7 +73,8 @@ class MemberDB(BaseModel):
     phone: Optional[str]
     role: str
     status: str
-
+    # penalty for late cancellation 0-no penalty 1-warning and 2-lower priority
+    penalty: int
 
 class Member(BaseModel):
     id: UUID4
@@ -82,7 +85,6 @@ class Member(BaseModel):
     phone: Optional[str]
     role: str
     status: str
-
 
 class CommentData(BaseModel):
     comment: str
@@ -103,40 +105,6 @@ class Post(PostData):
     created_at: datetime
     comments: List[Comment]
 
-
-class EventInput(BaseModel):
-    title: str
-    date: datetime
-    address: str
-    price: int
-    description: str  # short info about the event
-    duration: Optional[int]  # in hours
-    extraInformation: Optional[str]  # more detailed practical information
-    maxParticipants: Optional[int]
-    romNumber: Optional[str]
-    building: Optional[str]
-    picturePath: Optional[str]
-    transportation: bool
-    food: bool
-    active: bool
-
-
-class Event(EventInput):
-    eid: UUID4
-
-
-class EventUpdate(BaseModel):
-    title: Optional[str]
-    date: Optional[datetime]
-    address: Optional[str]
-    description: Optional[str]
-    maxParticipants: Optional[int]
-    active: Optional[bool]
-    price: Optional[int]
-    transportation: Optional[bool]
-    food: Optional[bool]
-
-
 class Participant(BaseModel):
     id: UUID4
     realName: str
@@ -148,6 +116,50 @@ class Participant(BaseModel):
     transportation: bool
     dietaryRestrictions: str
     submitDate: datetime
+    penalty: int
+
+
+class EventInput(BaseModel):
+    title: str
+    date: datetime
+    address: str
+    price: int
+    description: str  # short info about the event
+    # duration in hours
+    duration: Optional[int]
+    # more detailed practical information
+    public: bool
+    bindingRegistration: bool
+    transportation: bool
+    food: bool
+    extraInformation: Optional[str]  
+    maxParticipants: Optional[int]
+    romNumber: Optional[str]
+    building: Optional[str]
+    picturePath: Optional[str]
+    # time before event starting
+    registrationOpeningDate: Optional[datetime]
+
+
+class Event(EventInput):
+    eid: UUID4
+    # The TD member responsible for the event
+    host: EmailStr
+    # Collects all user penalties registered, ensuring only one penalty is given per event
+    registeredPenalties: List[UUID4]
+
+
+class EventUpdate(BaseModel):
+    title: Optional[str]
+    date: Optional[datetime]
+    address: Optional[str]
+    description: Optional[str]
+    maxParticipants: Optional[int]
+    public: Optional[bool]
+    price: Optional[int]
+    transportation: Optional[bool]
+    food: Optional[bool]
+    registrationOpeningDate: Optional[datetime]
 
 
 class EventDB(Event):
@@ -181,3 +193,6 @@ class JoinEventPayload(BaseModel):
     food: Optional[bool]
     transportation: Optional[bool]
     dietaryRestrictions: Optional[str]
+
+class PenaltyInput(BaseModel):
+    penalty: int=Field(ge=0, description="Penalty must be larger or equal to 0")
