@@ -1,9 +1,12 @@
 from fastapi import APIRouter, Request, HTTPException, Depends, Response
 from uuid import UUID, uuid4
+from pydantic import Field
+from pydantic.main import BaseModel
+from pydantic.types import PositiveInt
 from werkzeug.security import generate_password_hash
 from app.utils.validation import validate_password, validate_uuid
 from ..db import get_database
-from ..models import AccessTokenPayload, AdminMemberUpdate, MemberInput
+from ..models import AccessTokenPayload, AdminMemberUpdate, MemberInput, PenaltyInput
 from ..auth_helpers import authorize_admin
 from ..utils import passwordError
 
@@ -105,5 +108,23 @@ def delete_member(request: Request, id: str, token: AccessTokenPayload = Depends
 
     if not result:
         raise HTTPException(500)
+
+    return Response(status_code=200)
+
+@router.post('/assign-penalty-to-member/{id}', dependencies=[Depends(validate_uuid)])
+def set_member_penalty(request: Request, id:str, penalty_input: PenaltyInput, token: AccessTokenPayload = Depends(authorize_admin)):
+    db = get_database(request)
+    member = db.members.find_one({'id': UUID(id)})
+
+    if not member:
+        raise HTTPException(404, "Could not find member associated with id")
+
+    result = db.members.find_one_and_update(
+        {'id': member["id"]},
+        {"$set": {'penalty': penalty_input.penalty}}
+    )
+
+    if not result:
+        raise HTTPException(500, "Unexpected error while updating penalty")
 
     return Response(status_code=200)
