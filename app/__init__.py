@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .config import config
 
-from .api import members, auth, events, eventPost, admin, mail
+from .api import members, auth, events, admin, mail
 from .db import setup_db
 
 
@@ -31,7 +31,6 @@ def create_app():
     app.include_router(members.router, prefix="/api/member", tags=['members'])
     app.include_router(auth.router, prefix="/api/auth", tags=['auth'])
     app.include_router(events.router, prefix="/api/event", tags=['event'])
-    app.include_router(eventPost.router, prefix="/api/event-post", tags=['event post'])
     app.include_router(admin.router, prefix="/api/admin", tags=['admin'])
     app.include_router(mail.router, prefix="/api/mail", tags=['mail'])
 

@@ -86,24 +86,6 @@ class Member(BaseModel):
     role: str
     status: str
 
-class CommentData(BaseModel):
-    comment: str
-
-
-class Comment(CommentData):
-    author: UUID4
-    created_at: datetime
-
-
-class PostData(BaseModel):
-    message: str
-
-
-class Post(PostData):
-    id: UUID4
-    author: UUID4
-    created_at: datetime
-    comments: List[Comment]
 
 class Participant(BaseModel):
     id: UUID4
@@ -164,7 +146,6 @@ class EventUpdate(BaseModel):
 
 class EventDB(Event):
     participants: List[Participant]
-    posts: List[Post]
 
 
 class Tokens(BaseModel):
