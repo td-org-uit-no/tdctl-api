@@ -7,7 +7,8 @@
     "graduated": false,
     "phone": "",
     "status": "INACTIVE",
-    "role": "member"
+    "role": "member",
+    "penalty": 0
   },
   {
     "realName": "First Lastname",
@@ -17,7 +18,8 @@
     "graduated": false,
     "phone": "",
     "status": "INACTIVE",
-    "role": "member"
+    "role": "member",
+    "penalty": 0
   },
   {
       "realName": "Admin Adminsen",
@@ -27,7 +29,8 @@
       "graduated": false,
       "phone": "12345678",
       "status": "ACTIVE",
-      "role": "admin"
+      "role": "admin",
+      "penalty": 0
   },
   {
       "realName": "Second Admin",
@@ -37,7 +40,8 @@
       "graduated": false,
       "phone": "87654321",
       "status": "ACTIVE",
-      "role": "admin"
+      "role": "admin",
+      "penalty": 0
   }
 ]
 
