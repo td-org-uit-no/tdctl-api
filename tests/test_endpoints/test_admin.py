@@ -120,3 +120,22 @@ def test_give_admin_privileges(client):
     assert response.status_code == 201
     member = db.members.find_one({'email': member["email"]})
     assert member and member["role"] == "admin"
+
+@admin_required("api/admin/assign-penalty-to-member/{uuid}", "post")
+def test_assign_penalty(client):
+    member = db.members.find_one({'email': regular_member["email"]})
+    assert member
+
+    access_token = client_login(client, admin_member["email"], admin_member["password"])
+    header = {"Authorization": f"Bearer {access_token}"}
+
+    payload = {
+        "penalty" : 1
+    }
+
+    # check if penalty functionality is correct
+    response = client.post(f"api/admin/assign-penalty-to-member/{member['id']}", headers=header, json=payload)
+    assert response.status_code == 200
+
+    member = db.members.find_one({'email': regular_member["email"]})
+    assert member and member["penalty"] == 1
