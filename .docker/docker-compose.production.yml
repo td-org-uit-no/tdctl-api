@@ -12,6 +12,8 @@ services:
       - ../db/eventExports:/home/prod_user/db/eventExports
       # mount .config as mail credentials cannot be on github
       - ../.config:/home/prod_user/.config
+      # mount production files
+      - ../production_seed.py:/home/prod_user/production_seed.py
     environment:
       API_ENV: production
       DB_USER: ${MONGODB_USER}
