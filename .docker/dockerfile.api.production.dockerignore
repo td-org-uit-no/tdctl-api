@@ -1,0 +1,10 @@
+requirements.txt
+.docker
+db
+db/seeds/**
+!db/seeds/prod_members.json
+.git
+.github
+tests
+README.md
+seeding.py
