@@ -1,7 +1,6 @@
 # production utilities which does not need to be on github
 production_seed.py
 db/seeds/prod_members.json
-.docker/dockerfile.api.production.dockerignore
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
