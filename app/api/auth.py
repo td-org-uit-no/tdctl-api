@@ -15,7 +15,7 @@ def login(request: Request, credentials: Credentials):
     credential_exception = HTTPException(401, "Invalid e-mail or password")
 
     db = get_database(request)
-    member = db.members.find_one({'email': credentials.email})
+    member = db.members.find_one({'email': credentials.email.lower()})
     if not member:
         raise HTTPException(401, 'Invalid e-mail')
         #raise credential_exception
