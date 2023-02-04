@@ -7,9 +7,11 @@ from seeding import seed_events, seed_members
 
 import sys
 import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) 
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # for pytest to create an FastAPI instance, used in client as argument
+
+
 @pytest.fixture
 def app():
     from app import create_app
@@ -19,9 +21,12 @@ def app():
 
 # create a test client using a test database for testing
 # The db resets after every test
+
+
 @pytest.fixture
 def client(app):
-    mongo_client = MongoClient(app.config.MONGO_URI, uuidRepresentation="standard")
+    mongo_client = MongoClient(
+        app.config.MONGO_URI, uuidRepresentation="standard")
     # change the fastapi db to the test database
     app.db = mongo_client[app.config.MONGO_DBNAME]
     # safty check asserting we only clear our test database
@@ -35,8 +40,10 @@ def client(app):
         seed_events(app.db, f"{test_seed_path}/test_events.json")
         yield client
 
+
 def client_login(client, email, pwd):
-    response = client.post('/api/auth/login', json={'email': email, 'password': pwd})
+    response = client.post(
+        '/api/auth/login', json={'email': email, 'password': pwd})
     if response.status_code != 200:
         pytest.fail(f'Login error: {response.reason}')
     return response.json()['accessToken']
