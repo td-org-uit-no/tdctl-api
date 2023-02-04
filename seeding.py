@@ -66,7 +66,7 @@ def seed_members(db, seed_path):
 def seed_events(db, seed_path):
     db_member = db.members.find_one({"role": "admin"})
     responsible_member = db_member["email"]
-    
+
     with open(seed_path, "r") as f:
         events = json.load(f)
 
@@ -114,8 +114,27 @@ def get_db():
     return MongoClient(conf.MONGO_URI, uuidRepresentation="standard")[conf.MONGO_DBNAME]
 
 
+def seed_jobs(db, seed_path):
+    with open(seed_path, "r") as f:
+        jobs = json.load(f)
+
+    list_of_jobs = []
+
+    for job in jobs:
+        val_job = db.jobs.find_one({'id': job["id"]})
+        if not val_job:
+            job["id"] = uuid4()
+            job['start_date'] = datetime.now()
+            job['published_date'] = datetime.now()
+            job["due_date"] = datetime.now()
+            list_of_jobs.append(job)
+
+    db.jobs.insert_many(list_of_jobs)
+
+
 if __name__ == "__main__":
     db = get_db()
     seed_random_member(db, 10)
     seed_members(db, f"{base_dir}/members.json")
     seed_events(db, f"{base_dir}/events.json")
+    seed_jobs(db, f"{base_dir}/jobs.json")

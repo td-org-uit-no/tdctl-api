@@ -1,0 +1,51 @@
+[
+  {
+    "id": "6b43802eb1724f78bb3ee0c214573f81",
+    "company": "Bekk",
+    "title": "Internship how Bekk",
+    "start_date": "",
+    "type": "Internship",
+    "tags": ["frontend", "react", "typescript", "c#", "devops"],
+    "description_preview": "Vi søker nyutdannede utviklere med oppstart i august 2023!",
+    "description": "I Bekk jobber vi med skreddersøm av digitale tjenester for flere av Norges aller viktigste selskap. Vi tar ofte de store og kompliserte oppdragene, og mange av løsningene vi utvikler påvirker millioner av norske brukere. Vi bistår gjennom hele prosessen fra å kartlegge behov, finne kreative muligheter og utvikle de tekniske løsningene. Dette gjør vi i tverrfaglige teams med kompetanse innenfor teknologi, interaksjonsdesign og forretningsutvikling. For teknologene innebærer arbeidet en god miks av koding, problemløsning og rådgivning overfor kundene våre.Vi tror varige og betydningsfulle endringer gjøres av sterke og tverrfaglige team hvor det er trygt å prøve og feile. Du vil derfor aldri jobbe alene på et prosjekt, men alltid sammen med flere fra Bekk, både erfarne konsulenter og andre nyutdannede.",
+    "location": "Oslo",
+    "link": "https://www.bekk.no/",
+    "due_date": ""
+  },
+  {
+    "id": "7e6bb3ebfef44f9eb5889da5b87f8b08",
+    "company": "Net Company",
+    "title": "Deltidsjobb hos Net Company",
+    "start_date": "",
+    "type": "part time",
+    "tags": ["frontend", "F#", "react", "typescript"],
+    "description_preview": "Senior .Net Developer (B2B)",
+    "description": "Netcompany was founded in 2000 and has its headquarters in Copenhagen, Denmark. With the acquisition of Intrasoft International in late 2021, we added 2, 800 people to our existing roster of 3, 500 people. Today, we are an international company with more than 6, 500 employees working from 17 countries. We serve a wide array of customers in their digital transformation journeys in public and private sectors across Europe.We are excited by the challenge of doing things differently. At Netcompany we rely on one another and we develop quickly. We are team players. We change societies by creating life-changing IT solutions for variety of customers  from small private companies to large projects in the public sector. Our culture builds on low bureaucracy with a strong focus on high agility and flexibility. As new projects are coming we re looking for ambitious colleagues to join us in this adventure.About the role As a Senior .Net Developer you will:Analyse, understand business and technical requirements and work with clients across different domains and industries.Produce high-quality design deliverables that describe how the solution will accommodate business and technical requirements Design, develop, and maintain efficient, reusable, and reliable code using the best practices and design patterns Conduct unit and manual testing and deliver high quality solutions. Identify bottlenecks, bugs and devise solutions to troubleshoot and address issues. Work in an agile, international environment with experienced and skilled colleagues in Warsaw and Europe Plan and organize your own work and accurately report issues and progress in a timely mannerBe involved in knowledge sharing within the team    You will get a chance to work with different programming languages and technologies as those vary from project to project, a large part our tech stack is Microsoft(.NET 6, .NET Core 3.1, ASP.NET Core MVC).",
+    "location": "Trondheim",
+    "link": "https://www.netcompany.no/",
+    "due_date": ""
+  },
+  {
+    "id": "78974f48-47a541acafb5fd106698b6d6",
+    "company": "Bouvet",
+    "title": "Kom å jobb hos oss!",
+    "start_date": "",
+    "type": "fulltime",
+    "tags": [
+      "frontend",
+      "F#",
+      "react",
+      "typescript",
+      "javascript",
+      "c#",
+      "ci/cd",
+      "devops",
+      "support"
+    ],
+    "description_preview": "Jobb hos oss i Bouvet!",
+    "description": "Kjenner du et brennende engasjement for applikasjonssikkerhet og ønsker å være med å styrke utviklingsmiljøet i Bouvet med applikasjonssikkerhetskompetanse? Vi søker flere utviklere som kan være med i våre team, og da med et særskilt fokus på sikkerheten i livssyklusen (S-SDLC).  Hvorfor Bouvet ? 🥕 Vi har en sterk delingskultur. Det gjennomsyrer måten vi jobber sammen i prosjektene på, hvordan vi jobber mot et felles mål, våre lite spisse albuer, og at vi hjelper og deler kunnskap med hverandre. 🥕 Vi har byttet ut karrierestigen med en faglig rulletrapp. Ta steget,og vi vil gi deg kurset, mentoren eller sertifiseringen du trenger for å lære noe nytt. Hos oss er kunnskap og erfaring veien til nye prosjekter og mer ansvar. 🥕 Alle ansatte har fast lønn knyttet til stillingen sin. Prestasjonsbasert lønn og individuelle bonuser er ikke noe for oss. Vi vil gi deg trygghet med fast lønn og overskuddsdeling (felles bonusordning), og du får selvsagt betalt for overtid i perioder du må stå på litt ekstra. 🥕 Bærekraft er noe vi tar på alvor. Vår visjon «Vi går foran og bygger fremtidens samfunn» viser at vi ønsker å bidra til langsiktig verdiskapning med fokus på miljø og klima, sosiale og økonomiske forhold. Våre medarbeidere driver oss videre med nødvendig utålmodighet og krever at vi holder orden i eget hus",
+    "location": "Tromsø",
+    "link": "https://www.bouvet.no/",
+    "due_date": ""
+  }
+]

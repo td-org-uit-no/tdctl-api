@@ -10,6 +10,8 @@ services:
       - ../db/seeds:/home/prod_user/db/seeds
       - ../db/eventImages:/home/prod_user/db/eventImages
       - ../db/eventExports:/home/prod_user/db/eventExports
+      - ../db/jobImages:/home/prod_user/db/jobImages
+
       # mount .config as mail credentials cannot be on github
       - ../.config:/home/prod_user/.config
       # mount production files
@@ -35,9 +37,9 @@ services:
     image: mongo:latest
     restart: unless-stopped
     environment:
-        - MONGO_INITDB_ROOT_USERNAME=${MONGODB_USER}
-        - MONGO_INITDB_ROOT_PASSWORD=${MONGODB_PASSWORD}
-        - MONGO_INITDB_DATABASE=${DATABASE}
+      - MONGO_INITDB_ROOT_USERNAME=${MONGODB_USER}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGODB_PASSWORD}
+      - MONGO_INITDB_DATABASE=${DATABASE}
     command: mongod --auth --port ${PORT}
     volumes:
       - ../db/db_data:/data/db
