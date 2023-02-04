@@ -1,9 +1,9 @@
 from typing import Optional, List
 from pydantic import BaseModel, EmailStr, UUID4
-from datetime import datetime, timedelta
-from pydantic.datetime_parse import parse_datetime
+from datetime import datetime
 
 from pydantic.fields import Field
+
 
 class MailPayload(BaseModel):
     """
@@ -76,6 +76,7 @@ class MemberDB(BaseModel):
     # penalty for late cancellation 0-no penalty 1-warning and 2-lower priority
     penalty: int
 
+
 class Member(BaseModel):
     id: UUID4
     realName: str
@@ -114,7 +115,7 @@ class EventInput(BaseModel):
     bindingRegistration: bool
     transportation: bool
     food: bool
-    extraInformation: Optional[str]  
+    extraInformation: Optional[str]
     maxParticipants: Optional[int]
     romNumber: Optional[str]
     building: Optional[str]
@@ -166,14 +167,37 @@ class ChangePasswordPayload(BaseModel):
     password: str
     newPassword: str
 
+
 class ForgotPasswordPayload(BaseModel):
     token: str
     newPassword: str
+
 
 class JoinEventPayload(BaseModel):
     food: Optional[bool]
     transportation: Optional[bool]
     dietaryRestrictions: Optional[str]
 
+
 class PenaltyInput(BaseModel):
-    penalty: int=Field(ge=0, description="Penalty must be larger or equal to 0")
+    penalty: int = Field(
+        ge=0, description="Penalty must be larger or equal to 0")
+
+
+class JobItemPayload(BaseModel):
+    company: str
+    title: str
+    type: str
+    img: str
+    tags: List[str]
+    description_preview: str
+    description: str
+    start_date: datetime
+    published_date: datetime
+    location: str
+    link: str
+    due_date: datetime
+
+
+class JobItem(JobItemPayload):
+    id: UUID4
