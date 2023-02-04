@@ -188,7 +188,6 @@ class JobItemPayload(BaseModel):
     company: str
     title: str
     type: str
-    img: str
     tags: List[str]
     description_preview: str
     description: str
