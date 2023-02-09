@@ -51,7 +51,7 @@ def create_new_member(request: Request, newMember: MemberInput):
         with open("./app/assets/mails/member_confirmation.txt", 'r') as mail_content:
             confirmation_email = MailPayload(
                 to = [newMember.email],
-                subject = "Confirmaiton email",
+                subject = "Confirmation email",
                 content = mail_content.read().replace("$LINK$", f"{request.app.config.FRONTEND_URL}/confirmation/{confirmationCode.hex}")
             )
         send_mail(confirmation_email)
@@ -168,7 +168,7 @@ def generate_new_confirmation_code(request: Request, email: str):
         with open("./app/assets/mails/member_confirmation.txt", 'r') as mail_content:
             confirmation_email = MailPayload(
                 to = [email],
-                subject = "Confirmaiton email",
+                subject = "Confirmation email",
                 content = mail_content.read().replace("$LINK$", f"{request.app.config.FRONTEND_URL}/confirmation/{newConfirmationCode.hex}")
             )
         send_mail(confirmation_email)
