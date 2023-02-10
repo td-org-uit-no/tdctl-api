@@ -310,8 +310,8 @@ async def exportEvent(background_tasks: BackgroundTasks, request: Request, id: s
         os.makedirs(get_export_path(request))
 
     filename = f"{id}.xlsx"
-    path = get_export_path(request)
-    path = path + filename
+    export_dir = get_export_path(request)
+    path = f"{export_dir}/{filename}"
 
     db = get_database(request)
     event = get_event_or_404(db, id)
