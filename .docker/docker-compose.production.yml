@@ -3,6 +3,7 @@ services:
   tdctl_api:
     image: ghcr.io/td-org-uit-no/tdctl-api/tdctl-api:latest
     container_name: tdctl-api-production
+    user: "prod_user:prod_user"
     build:
       context: ../
       dockerfile: .docker/dockerfile.api.production
