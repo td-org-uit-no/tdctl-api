@@ -1,7 +1,11 @@
 requirements.txt
 .docker
-db
-db/seeds/**
+db/db_data
+db/db.yml
+db/cleanup.sh
+db/testEventImages
+db/README.md
+db/seeds/*
 !db/seeds/prod_members.json
 .git
 .github
