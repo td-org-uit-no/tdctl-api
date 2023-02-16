@@ -26,6 +26,7 @@ services:
       DB: ${DATABASE}
       SECRET_KEY: ${SECRET_KEY}
       FRONTEND_URL: ${FRONTEND_URL}
+      TZ: ${TZ}
     networks:
       - frontend
       - backend
@@ -41,6 +42,7 @@ services:
       - MONGO_INITDB_ROOT_USERNAME=${MONGODB_USER}
       - MONGO_INITDB_ROOT_PASSWORD=${MONGODB_PASSWORD}
       - MONGO_INITDB_DATABASE=${DATABASE}
+      - TZ=${TZ}
     command: mongod --auth --port ${PORT}
     volumes:
       - ../db/db_data:/data/db
