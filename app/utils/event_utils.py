@@ -1,4 +1,5 @@
 from datetime import datetime
+from uuid import UUID
 from fastapi import HTTPException
 from datetime import datetime, timedelta
 
@@ -42,9 +43,19 @@ def validate_cancellation_time(start_date):
 def should_penalize(event, user_id):
     already_penalized = user_id in event["registeredPenalties"]
     if already_penalized:
-        print("Already penalty")
         return False
-    return event["bindingRegistration"] and not validate_cancellation_time(event["date"])
+    # Only penalize if regestration is late and the user is in a "reserved" spot
+    # members in waiting list does not receive a penalty
+    if (event["bindingRegistration"] and not validate_cancellation_time(event["date"])):
+        maxParticipants = event["maxParticipants"]
+        # no penalty when there are no reserved spots i.e no participant cap
+        if maxParticipants == None:
+            return False
+
+        for member in event["participants"][:maxParticipants]:
+            if member["id"] == UUID(user_id):
+                return True
+    return False
 
 def valid_registration(opening_date):
     # non specified opening date means registration is open
