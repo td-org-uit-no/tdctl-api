@@ -145,6 +145,18 @@ def update_event(request: Request, id: str, eventUpdate: EventUpdate, AccessToke
 
     return Response(status_code=200)
 
+@router.delete('/{id}', dependencies=[Depends(validate_uuid)])
+def delete_event_by_id(request: Request, id: str, AccessTokenPayload=Depends(authorize_admin)):
+    db = get_database(request)
+    event = get_event_or_404(db, id)
+
+    res = db.events.find_one_and_delete({'eid': event["eid"]})
+    
+    if not res:
+        raise HTTPException(500, "Unexpected error when deleting event")
+
+    return Response(status_code=200)
+
 
 @router.get('/{id}', dependencies=[Depends(validate_uuid)])
 def get_event_by_id(request: Request, id: str, token: AccessTokenPayload = Depends(optional_authentication)):
@@ -223,7 +235,6 @@ def leave_event(request: Request, id: str, token: AccessTokenPayload = Depends(a
     event = get_event_or_404(db, id)
     member = db.members.find_one({'id': UUID(token.user_id)})
     penalty = should_penalize(event, token.user_id)
-
     if not member:
         raise HTTPException(400, "User could not be found")
 
