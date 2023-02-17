@@ -5,7 +5,7 @@ from app.db import get_test_db
 from tests.conftest import client_login
 from datetime import datetime, timedelta
 from tests.test_endpoints.test_members import payload
-from tests.users import regular_member, admin_member, second_admin
+from tests.users import regular_member, admin_member, second_admin, second_member
 
 from tests.utils.authentication import admin_required, authentication_required
 
@@ -97,6 +97,23 @@ def test_update_event(client):
     event = db.events.find_one({'eid': UUID(eid)})
     assert event and event["title"] == update_field["title"]
 
+@admin_required("/api/event/{uuid}", "delete")
+def test_delete_event(client):
+    access_token = client_login(
+        client, admin_member["email"], admin_member["password"])
+    admin_header = {"Authorization": f"Bearer {access_token}"}
+
+    # test delete on non existing event
+    response = client.delete(f"api/event/{non_existing_eid}", headers=admin_header)
+    assert response.status_code == 404
+
+    # test delete on existing event
+    eid = test_events[0]["eid"]
+    response = client.delete(f"api/event/{eid}", headers=admin_header)
+    assert response.status_code == 200
+
+    event = db.events.find_one({'eid': eid})
+    assert event == None
 
 def test_get_all_event(client):
     response = client.get("/api/event/")
@@ -297,10 +314,27 @@ def test_leave_event(client):
     # tests penalty assignment for leaving event with binding registration starting in > 24 hours
     member_before_leave = db.members.find_one({'email': regular_member["email"]})
     assert member_before_leave
+    second_member_before_leave = db.members.find_one({'email': second_member["email"]})
+    assert second_member_before_leave
+
+    access_token = client_login(
+        client, admin_member["email"], admin_member["password"])
+    second_member_header = {"Authorization": f"Bearer {access_token}"}
+
     penalty_before = member_before_leave["penalty"]
 
     response = client.post(f'/api/event/{new_event_eid}/join', json=joinEventPayload, headers=header)
     assert response.status_code == 200
+
+    # test that users on waiting list does not receive penalty
+    response = client.post(f'/api/event/{new_event_eid}/join', json=joinEventPayload, headers=second_member_header)
+    assert response.status_code == 200
+
+    response = client.post(f'/api/event/{new_event_eid}/leave', headers=second_member_header)
+    assert response.status_code == 200
+
+    second_member_after = db.members.find_one({'email': second_member["email"]})
+    assert second_member_after and second_member_after["penalty"] - second_member_before_leave["penalty"] == 0
 
     response = client.post(f'/api/event/{new_event_eid}/leave', headers=header)
     assert response.status_code == 200
