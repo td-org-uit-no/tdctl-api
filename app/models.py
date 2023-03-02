@@ -123,9 +123,10 @@ class EventInput(BaseModel):
     # time before event starting
     registrationOpeningDate: Optional[datetime]
 
-
-class Event(EventInput):
+class EventUserView(EventInput):
     eid: UUID4
+
+class Event(EventUserView):
     # The TD member responsible for the event
     host: EmailStr
     # Collects all user penalties registered, ensuring only one penalty is given per event
@@ -147,7 +148,6 @@ class EventUpdate(BaseModel):
 
 class EventDB(Event):
     participants: List[Participant]
-
 
 class Tokens(BaseModel):
     accessToken: str

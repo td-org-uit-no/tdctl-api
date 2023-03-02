@@ -12,7 +12,7 @@ from app.utils.event_utils import should_penalize, valid_registration, validate_
 from app.utils.validation import validate_image_file_type, validate_uuid
 from ..auth_helpers import authorize, authorize_admin, optional_authentication
 from ..db import get_database, get_image_path, get_export_path
-from ..models import Event, EventDB, AccessTokenPayload, EventInput, EventUpdate, JoinEventPayload, Participant
+from ..models import Event, EventDB, AccessTokenPayload, EventInput, EventUpdate, EventUserView, JoinEventPayload, Participant
 from .utils import get_event_or_404
 import pandas as pd
 
@@ -170,7 +170,10 @@ def get_event_by_id(request: Request, id: str, token: AccessTokenPayload = Depen
         # only allow admin members acces to unpublished events
         raise HTTPException(403, "Insufficient privileges to access this resource")
 
-    return EventDB.parse_obj(event)
+    if role == "admin":
+        return EventDB.parse_obj(event)
+
+    return EventUserView.parse_obj(event)
 
 
 @router.get('/{id}/participants', dependencies=[Depends(validate_uuid)])
