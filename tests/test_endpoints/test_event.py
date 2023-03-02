@@ -171,15 +171,26 @@ def test_upload_event_picture(client):
 
 
 def test_get_event_by_id(client):
+    access_token = client_login(
+        client, admin_member["email"], admin_member["password"])
+    admin_header = {"Authorization": f"Bearer {access_token}"}
     eid = test_events[0]["eid"]
+
     response = client.get(f'/api/event/{non_existing_eid}')
     assert response.status_code == 404
 
     response = client.get(f'/api/event/{eid}')
+    res = response.json()
+    assert response.status_code == 200
+    assert ("participants" in res) == False
+
+    response = client.get(f'/api/event/{eid}', headers=admin_header)
     assert response.status_code == 200
 
-
 def test_get_event_participants(client):
+    access_token = client_login(
+        client, admin_member["email"], admin_member["password"])
+    admin_header = {"Authorization": f"Bearer {access_token}"}
     eid = test_events[1]["eid"]
     access_token = client_login(
         client, regular_member["email"], regular_member["password"])
@@ -189,13 +200,31 @@ def test_get_event_participants(client):
         f'/api/event/{non_existing_eid}/participants', headers=headers)
     assert response.status_code == 404
 
-    # Check !admin
     response = client.get(f'/api/event/{eid}/participants', headers=headers)
+    res_json = response.json()
+    assert response.status_code == 401
+    
+    # checks that list is only returned for regular users on open events
+    response = client.get(f'/api/event/{eid}/participants', headers=headers)
+    res_json = response.json()
+    assert response.status_code == 401
+
+    # Check expected behavior
+    response = client.get(f'/api/event/{eid}/participants', headers=admin_header)
     res_json = response.json()
     assert response.status_code == 200
     assert len(res_json) == len(test_members)
 
-    assert 'food' not in res_json[0]
+
+    # remove maxParticipants to check that participants are returned
+    update_field = {"maxParticipants": None}
+    response = client.put(
+        f"/api/event/{eid}", json=update_field, headers=admin_header)
+    assert response.status_code == 200
+    response = client.get(f'/api/event/{eid}/participants', headers=admin_header)
+    res_json = response.json()
+    assert response.status_code == 200
+    assert len(res_json) == len(test_members)
 
     # Check admin
     access_token = client_login(
