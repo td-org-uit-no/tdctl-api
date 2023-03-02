@@ -182,6 +182,10 @@ def get_event_participants(request: Request, id: str, token: AccessTokenPayload 
     event = get_event_or_404(db, id)
     if token.role == "admin":
         return [Participant.parse_obj(p) for p in event['participants']]
+    
+    if event["maxParticipants"] != None:
+        # only return the list when events are open i.e no cap
+        raise HTTPException(401, "regular user cannot get participant list for limited events")
 
     return [{'id': p['id'], 'name': p['realName']} for p in event['participants']]
 
