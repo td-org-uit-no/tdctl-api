@@ -122,9 +122,12 @@ class EventInput(BaseModel):
     picturePath: Optional[str]
     # time before event starting
     registrationOpeningDate: Optional[datetime]
+    confirmed: Optional[bool]
+
 
 class EventUserView(EventInput):
     eid: UUID4
+
 
 class Event(EventUserView):
     # The TD member responsible for the event
@@ -144,10 +147,12 @@ class EventUpdate(BaseModel):
     transportation: Optional[bool]
     food: Optional[bool]
     registrationOpeningDate: Optional[datetime]
+    confirmed: Optional[bool]
 
 
 class EventDB(Event):
     participants: List[Participant]
+
 
 class Tokens(BaseModel):
     accessToken: str

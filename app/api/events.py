@@ -15,6 +15,9 @@ from ..db import get_database, get_image_path, get_export_path
 from ..models import Event, EventDB, AccessTokenPayload, EventInput, EventUpdate, EventUserView, JoinEventPayload, Participant
 from .utils import get_event_or_404
 import pandas as pd
+from .mail import send_mail
+from ..models import MailPayload
+
 
 router = APIRouter()
 
@@ -25,11 +28,11 @@ def create_event(request: Request, newEvent: EventInput, token: AccessTokenPaylo
     db = get_database(request)
     # validates event date and registrationOpningDate
     validate_event_dates(newEvent)
-    
+
     member = db.members.find_one({'id': UUID(token.user_id)})
     if member == None:
         raise HTTPException(500, "Problem caller not found")
-    host_email =  member["email"]
+    host_email = member["email"]
 
     eid = uuid4()
     additionalFields = {
@@ -39,6 +42,8 @@ def create_event(request: Request, newEvent: EventInput, token: AccessTokenPaylo
         'registeredPenalties': [],
         'host': host_email
     }
+    if newEvent.bindingRegistration:
+        additionalFields['confirmed'] = False
 
     event = newEvent.dict()
     event.update(additionalFields)
@@ -72,9 +77,10 @@ def get_upcoming_events(request: Request, token: AccessTokenPayload = Depends(op
     except ValueError:
         raise HTTPException(500, "Problem handling date format")
     # search filter for non admin users
-    search_filter = {"$and": [{'date': {'$gt': date}}, {"public": {"$eq": True}}]}
+    search_filter = {
+        "$and": [{'date': {'$gt': date}}, {"public": {"$eq": True}}]}
     if token and token.role == "admin":
-        search_filter={'date': {"$gt": date}}
+        search_filter = {'date': {"$gt": date}}
 
     upcoming_events = db.events.find(search_filter)
 
@@ -82,6 +88,8 @@ def get_upcoming_events(request: Request, token: AccessTokenPayload = Depends(op
 
 # custom uuid validation as eid: UUID will not allow users to copy eids into swagger as they are not formatted correctly
 # id is used over eid as parameter name as validate_uuid and the api function needs the have the same parameter name.
+
+
 @router.get('/{id}/image', dependencies=[Depends(validate_uuid)])
 def get_event_picture(request: Request, id: str):
     image_path = get_image_path(request)
@@ -114,7 +122,7 @@ def update_event(request: Request, id: str, eventUpdate: EventUpdate, AccessToke
     """ To unset an optional field set the value to null """
     db = get_database(request)
     event = get_event_or_404(db, id)
-    
+
     # exclude_unset allows null to be included allowing for optional fields to be updated to be null i.e not present
     values = eventUpdate.dict(exclude_unset=True)
     if len(values) == 0:
@@ -134,7 +142,8 @@ def update_event(request: Request, id: str, eventUpdate: EventUpdate, AccessToke
     try:
         EventDB.parse_obj({**event, **values})
     except ValidationError:
-        raise HTTPException(400, "Cannot remove field as this is required filed for all events")
+        raise HTTPException(
+            400, "Cannot remove field as this is required filed for all events")
 
     result = db.events.find_one_and_update(
         {'eid': UUID(id)},
@@ -145,13 +154,14 @@ def update_event(request: Request, id: str, eventUpdate: EventUpdate, AccessToke
 
     return Response(status_code=200)
 
+
 @router.delete('/{id}', dependencies=[Depends(validate_uuid)])
 def delete_event_by_id(request: Request, id: str, AccessTokenPayload=Depends(authorize_admin)):
     db = get_database(request)
     event = get_event_or_404(db, id)
 
     res = db.events.find_one_and_delete({'eid': event["eid"]})
-    
+
     if not res:
         raise HTTPException(500, "Unexpected error when deleting event")
 
@@ -168,7 +178,8 @@ def get_event_by_id(request: Request, id: str, token: AccessTokenPayload = Depen
         role = token.role
     if event["public"] == False and role != "admin":
         # only allow admin members acces to unpublished events
-        raise HTTPException(403, "Insufficient privileges to access this resource")
+        raise HTTPException(
+            403, "Insufficient privileges to access this resource")
 
     if role == "admin":
         return EventDB.parse_obj(event)
@@ -182,10 +193,11 @@ def get_event_participants(request: Request, id: str, token: AccessTokenPayload 
     event = get_event_or_404(db, id)
     if token.role == "admin":
         return [Participant.parse_obj(p) for p in event['participants']]
-    
+
     if event["maxParticipants"] != None:
         # only return the list when events are open i.e no cap
-        raise HTTPException(401, "regular user cannot get participant list for limited events")
+        raise HTTPException(
+            401, "regular user cannot get participant list for limited events")
 
     return [{'id': p['id'], 'name': p['realName']} for p in event['participants']]
 
@@ -257,7 +269,7 @@ def leave_event(request: Request, id: str, token: AccessTokenPayload = Depends(a
 
     if penalty:
         res = db.events.update_one(
-            {'eid': event["eid"]}, 
+            {'eid': event["eid"]},
             {"$addToSet": {"registeredPenalties": member["id"]}}
         )
         # only give penalty if addToSet added a new entry
@@ -391,7 +403,7 @@ async def exportEvent(background_tasks: BackgroundTasks, request: Request, id: s
                 col+1, 15 + 1, cell_format=participants_accept_format2)
     else:
         for col in range(14, 14+len(participants), 2):
-            if(col < 14+event['maxParticipants']):
+            if (col < 14+event['maxParticipants']):
                 worksheet.set_row(
                     col, 15 + 1, cell_format=participants_accept_format)
                 worksheet.set_row(
@@ -407,3 +419,58 @@ async def exportEvent(background_tasks: BackgroundTasks, request: Request, id: s
 
     headers = {'Content-Disposition': 'attachment; filename="Book.xlsx"'}
     return FileResponse(path, headers=headers)
+
+
+@router.put('/{id}/confirm', dependencies=[Depends(validate_uuid)])
+def confirmation(request: Request, id: str, eventUpdate: EventUpdate, token: AccessTokenPayload = Depends(authorize_admin)):
+    print("CONFIRMATION REUQEST FOR :", id)
+    db = get_database(request)
+    event = get_event_or_404(db, id)
+
+    # Guard to not unconfirm event
+    if eventUpdate.confirmed == False:
+        raise HTTPException(400, "Event cannot be unconfirmed")
+
+    # Check if already confirmed
+    _event = Event(**event)
+    if _event.confirmed == True:
+        raise HTTPException(400, "Event already confirmed!")
+
+    values = eventUpdate.dict(exclude_unset=True)
+    if len(values) == 0:
+        raise HTTPException(400, "Update values cannot be empty")
+    # Update event in db
+    result = db.events.find_one_and_update(
+        {'eid': UUID(id)},
+        {"$set": values})
+
+    if not result:
+        raise HTTPException(500, "Unexpected error when updating event")
+
+    # Aggregate all participants emails to send confirmation email
+    pipeline = [
+        {"$match": {"eid": UUID(id)}},
+        {"$unwind": "$participants"},
+        {"$group": {"_id": "$participants.email"}},
+    ]
+
+    confirmedParticipants = db.events.aggregate(pipeline)
+    # Send email to all participants
+    mailingList = [p['_id'] for p in confirmedParticipants]
+
+    if request.app.config.ENV == 'production':
+        with open("./app/assets/mails/event_confirmation.txt", 'r') as mail_content:
+            content = mail_content.read().replace(
+                "$EVENT_NAME$", event['title'])
+            content.replace(
+                "$EVENT_DATE$", event['date'].strftime("%d %B, %Y"))
+            content.replace("$EVENT_TIME$", event['date'].strftime("%H:%M:%S"))
+            content.replace("$LOCATION$", event['address'])
+
+            confirmation_email = MailPayload(
+                to=mailingList,
+                subject="Event confirmation",
+                content=content,
+            )
+        send_mail(confirmation_email)
+    return Response(status_code=200)
