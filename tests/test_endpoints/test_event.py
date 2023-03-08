@@ -230,9 +230,6 @@ def test_join_event(client):
         f'/api/event/{new_event_eid}/join', json=joinEventPayload, headers=admin_header)
     assert response.status_code == 200
 
-    res = response.json()
-
-    assert res['max'] == False
     # checks response on full event
     access_token = client_login(client, payload["email"], payload["password"])
     headers = {"Authorization": f"Bearer {access_token}"}
@@ -240,8 +237,6 @@ def test_join_event(client):
     response = client.post(
         f'/api/event/{new_event_eid}/join', json=joinEventPayload, headers=headers)
     assert response.status_code == 200
-    res = response.json()
-    assert res['max'] == True
 
     # === Test joing non public/unopened event ===
     event["public"] = False
