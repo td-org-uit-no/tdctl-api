@@ -191,11 +191,11 @@ class JobItemPayload(BaseModel):
     tags: List[str]
     description_preview: str
     description: str
-    start_date: datetime
     published_date: datetime
     location: str
     link: str
-    due_date: datetime
+    start_date: Optional[datetime]
+    due_date: Optional[datetime]
 
 
 class JobItem(JobItemPayload):
