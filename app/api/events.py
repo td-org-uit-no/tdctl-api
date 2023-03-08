@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
 import shutil
 from fastapi import APIRouter, Response, Request, HTTPException, Depends
@@ -65,7 +65,9 @@ def get_upcoming_events(request: Request, token: AccessTokenPayload = Depends(op
     Provides public upcoming events to regular members and return all events to admin
     '''
     db = get_database(request)
-    now = datetime.now()
+    # allows ongoing events to still be visible for users
+    now = datetime.now() + timedelta(hours=4)
+
     try:
         date_str = now.strftime("%Y-%m-%d %H:%M:%S")
         date = datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S")
