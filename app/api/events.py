@@ -226,14 +226,13 @@ def join_event(request: Request, id: str, payload: JoinEventPayload, token: Acce
     new_fields = {**member, **participantData}
     participant = Participant.parse_obj(new_fields)
 
-    db.events.update_one({'eid': event['eid']}, {
+    res = db.events.update_one({'eid': event['eid']}, {
         "$addToSet": {"participants": participant.dict()}})
 
-    if event['maxParticipants']:
-        if len(event['participants']) >= event['maxParticipants']:
-            return {'max': True}
+    if res == None:
+        raise HTTPException(500, "Unexpected error updating database in join")
 
-    return {'max': False}
+    return Response(status_code=200)
 
 
 @router.post('/{id}/leave', dependencies=[Depends(validate_uuid)])
@@ -267,14 +266,13 @@ def leave_event(request: Request, id: str, token: AccessTokenPayload = Depends(a
                 {"$inc": {'penalty': 1}}
             )
 
-    db.events.update_one({'eid': event['eid']}, {
+    res = db.events.update_one({'eid': event['eid']}, {
         "$pull": {"participants": {"id": member["id"]}}})
 
-    if event['maxParticipants']:
-        if len(event['participants']) >= event['maxParticipants']:
-            return {'max': True}
+    if res == None:
+        raise HTTPException(500, "Unexpected error updating database in leave")
 
-    return {'max': False}
+    return Response(status_code=200)
 
 
 @router.get('/{id}/joined', dependencies=[Depends(validate_uuid)])
