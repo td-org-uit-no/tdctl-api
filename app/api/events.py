@@ -66,7 +66,7 @@ def get_upcoming_events(request: Request, token: AccessTokenPayload = Depends(op
     '''
     db = get_database(request)
     # allows ongoing events to still be visible for users
-    now = datetime.now() + timedelta(hours=4)
+    now = datetime.now() - timedelta(hours=4)
 
     try:
         date_str = now.strftime("%Y-%m-%d %H:%M:%S")
