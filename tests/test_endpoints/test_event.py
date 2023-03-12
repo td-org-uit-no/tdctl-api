@@ -175,9 +175,6 @@ def test_upload_event_picture(client):
 
 
 def test_get_event_by_id(client):
-    access_token = client_login(
-        client, admin_member["email"], admin_member["password"])
-    admin_header = {"Authorization": f"Bearer {access_token}"}
     eid = test_events[0]["eid"]
 
     response = client.get(f'/api/event/{non_existing_eid}')
@@ -188,56 +185,51 @@ def test_get_event_by_id(client):
     assert response.status_code == 200
     assert ("participants" in res) == False
 
-    response = client.get(f'/api/event/{eid}', headers=admin_header)
+    client_login(client, admin_member["email"], admin_member["password"])
+    response = client.get(f'/api/event/{eid}')
     assert response.status_code == 200
 
 
 def test_get_event_participants(client):
-    access_token = client_login(
-        client, admin_member["email"], admin_member["password"])
-    admin_header = {"Authorization": f"Bearer {access_token}"}
     eid = test_events[1]["eid"]
-    access_token = client_login(
-        client, regular_member["email"], regular_member["password"])
-    headers = {"Authorization": f"Bearer {access_token}"}
 
-    response = client.get(
-        f'/api/event/{non_existing_eid}/participants', headers=headers)
+    # Test regular member
+
+    client_login(client, regular_member["email"], regular_member["password"])
+
+    response = client.get(f'/api/event/{non_existing_eid}/participants')
     assert response.status_code == 404
 
-    response = client.get(f'/api/event/{eid}/participants', headers=headers)
+    response = client.get(f'/api/event/{eid}/participants')
     res_json = response.json()
     assert response.status_code == 401
 
     # checks that list is only returned for regular users on open events
-    response = client.get(f'/api/event/{eid}/participants', headers=headers)
+    response = client.get(f'/api/event/{eid}/participants')
     res_json = response.json()
     assert response.status_code == 401
 
+
+    # Test admin
+
+    client_login(client, admin_member["email"], admin_member["password"])
+
     # Check expected behavior
-    response = client.get(
-        f'/api/event/{eid}/participants', headers=admin_header)
+    response = client.get(f'/api/event/{eid}/participants')
     res_json = response.json()
     assert response.status_code == 200
     assert len(res_json) == len(test_members)
 
     # remove maxParticipants to check that participants are returned
     update_field = {"maxParticipants": None}
-    response = client.put(
-        f"/api/event/{eid}", json=update_field, headers=admin_header)
+    response = client.put(f"/api/event/{eid}", json=update_field)
     assert response.status_code == 200
-    response = client.get(
-        f'/api/event/{eid}/participants', headers=admin_header)
+    response = client.get(f'/api/event/{eid}/participants')
     res_json = response.json()
     assert response.status_code == 200
     assert len(res_json) == len(test_members)
 
-    # Check admin
-    access_token = client_login(
-        client, admin_member["email"], admin_member["password"])
-    headers = {"Authorization": f"Bearer {access_token}"}
-
-    response = client.get(f'/api/event/{eid}/participants', headers=headers)
+    response = client.get(f'/api/event/{eid}/participants')
     res_json = response.json()
     assert response.status_code == 200
     assert len(res_json) == len(test_members)
@@ -245,72 +237,90 @@ def test_get_event_participants(client):
 
 
 @authentication_required("/api/event/{uuid}/join", "post")
-def test_join_event(client):
+def test_join_unpublished_event(client):
     # make copy so other test doesn't get affected
     event = new_event.copy()
-    admin_access_token = client_login(
-        client, admin_member["email"], admin_member["password"])
-    admin_header = {"Authorization": f"Bearer {admin_access_token}"}
+    event["public"] = False
+    # allow for more users to join
+    event["maxParticipants"] = 3
+
+    # Login as admin
+    client_login(client, admin_member["email"], admin_member["password"])
+    # Create unpublished event
+    response = client.post("/api/event/", json=event)
+    test_event_id = response.json()["eid"]
+    assert response.status_code == 200
+
+    # admin should be able to join unpublished events
+    response = client.post(
+        f'/api/event/{test_event_id}/join', json=joinEventPayload)
+    assert response.status_code == 200
+
+    # Login as regular member
+    client_login(client, regular_member["email"], regular_member["password"])
+    # try joining closed event
+    response = client.post(f'/api/event/{test_event_id}/join', json=joinEventPayload)
+    assert response.status_code == 403
+
+
+    ########## Set registration opening date ##########
+
+    # Relogin as admin
+    client_login(client, admin_member["email"], admin_member["password"])
+
+    # set registration to open in 3 hours
+    response = client.put(
+            f'/api/event/{test_event_id}/', json={"registrationOpeningDate": valid_reg_opening_time_str, "public": True})
+    assert response.status_code == 200
+
+    # user should not be able to join before event registration opens
+    client_login(client, regular_member["email"], regular_member["password"])
+    response = client.post(f'/api/event/{test_event_id}/join', json=joinEventPayload)
+    assert response.status_code == 403
+
+    # admin should be able to join
+    client_login(client, second_admin["email"], second_admin["password"])
+    response = client.post(f'/api/event/{test_event_id}/join', json=joinEventPayload)
+    assert response.status_code == 200
+
+@authentication_required("/api/event/{uuid}/join", "post")
+def test_join_published_event(client):
+    # make copy so other test doesn't get affected
+    event = new_event.copy()
+    client_login(client, admin_member["email"], admin_member["password"])
 
     # creates event with maxParticipants = 1
-    response = client.post("/api/event/", json=event, headers=admin_header)
+    response = client.post("/api/event/", json=event)
     new_event_eid = response.json()["eid"]
+    assert response.status_code == 200
+
+    # joins the event
+    response = client.post(f'/api/event/{new_event_eid}/join', json=joinEventPayload)
     assert response.status_code == 200
 
     # creates new member for joining the event
     response = client.post("/api/member/", json=payload)
     assert response.status_code == 200
-    # joins the event
-    access_token = client_login(client, payload["email"], payload["password"])
-    headers = {"Authorization": f"Bearer {access_token}"}
 
-    # === Test joing non public/unopened event ===
-    event["public"] = False
-    # allow for more users to join
-    new_event["maxParticipants"] = 3
-    response = client.post("/api/event/", json=event, headers=admin_header)
-    test_event_id = response.json()["eid"]
-    assert response.status_code == 200
-    # try joining closed event
-    response = client.post(
-        f'/api/event/{test_event_id}/join', json=joinEventPayload, headers=headers)
-    assert response.status_code == 403
-    # admin should be able to join unpublished events
-    response = client.post(
-        f'/api/event/{test_event_id}/join', json=joinEventPayload, headers=admin_header)
-    assert response.status_code == 200
-    # set registration to open in 3 hours
-    response = client.put(
-        f'/api/event/{test_event_id}/', json={"registrationOpeningDate": valid_reg_opening_time_str, "public": True}, headers=admin_header)
-    assert response.status_code == 200
-    # user should not be able to join before event registration opens
-    response = client.post(
-        f'/api/event/{test_event_id}/join', json=joinEventPayload, headers=headers)
-    assert response.status_code == 403
-    # admin should be able to join
-    access_token = client_login(
-        client, second_admin["email"], second_admin["password"])
-    second_admin_header = {"Authorization": f"Bearer {access_token}"}
-    response = client.post(
-        f'/api/event/{test_event_id}/join', json=joinEventPayload, headers=second_admin_header)
+    # checks response on full event
+    client_login(client, payload["email"], payload["password"])
+
+    response = client.post(f'/api/event/{new_event_eid}/join', json=joinEventPayload)
     assert response.status_code == 200
 
     # === test join ordering ===
     eid = test_events[0]["eid"]
     
     # setup event
-    response = client.put(
-            f"/api/event/{eid}", json={"date": f"{future_time_str}"}, headers=admin_header)
+    response = client.put(f"/api/event/{eid}", json={"date": f"{future_time_str}"})
     assert response.status_code == 200
 
     new_member = db.members.find_one({"email": payload["email"]})
     assert new_member
 
-    access_token = client_login(client, payload["email"], payload["password"])
-    new_member_header = {"Authorization": f"Bearer {access_token}"}
+    client_login(client, payload["email"], payload["password"])
 
-    response = client.post(
-        f'/api/event/{eid}/join', json=joinEventPayload, headers=new_member_header)
+    response = client.post(f'/api/event/{eid}/join', json=joinEventPayload)
     assert response.status_code == 200
     # check that joined non penalized comes in front of penalized member
     updated_event = db.events.find_one({"eid": UUID(eid)})
@@ -327,42 +337,35 @@ def test_join_event(client):
 def test_leave_event(client):
     event = new_event.copy()
     # creates an event starting in > 24 hours
-    access_token = client_login(
-        client, admin_member["email"], admin_member["password"])
-    header = {"Authorization": f"Bearer {access_token}"}
-    response = client.post("/api/event/", json=event, headers=header)
+    client_login(client, admin_member["email"], admin_member["password"])
+    response = client.post("/api/event/", json=event)
     new_event_eid = response.json()["eid"]
     assert response.status_code == 200
 
     event["bindingRegistration"] = False
-    response = client.post("/api/event/", json=event, headers=header)
+    response = client.post("/api/event/", json=event)
     # creates new members as all seeding members are joined events
     eid = test_events[1]["eid"]
     response = client.post("/api/member/", json=payload)
     assert response.status_code == 200
 
-    access_token = client_login(client, payload["email"], payload["password"])
-    header = {"Authorization": f"Bearer {access_token}"}
+    client_login(client, payload["email"], payload["password"])
     # checks for leaving as a user not joined a event
-    response = client.post(f'/api/event/{eid}/leave', headers=header)
+    response = client.post(f'/api/event/{eid}/leave')
     assert response.status_code == 400
 
     # checks for leaving as non existing user
-    response = client.post(
-        f'/api/event/{non_existing_eid}/leave', headers=header)
+    response = client.post(f'/api/event/{non_existing_eid}/leave')
     assert response.status_code == 404
 
     # all seeding members are joined every event
-    access_token = client_login(
-        client, admin_member["email"], admin_member["password"])
-    header = {"Authorization": f"Bearer {access_token}"}
+    client_login(client, admin_member["email"], admin_member["password"])
 
     # should not be able to leave finished event
-    response = client.post(f'/api/event/{eid}/leave', headers=header)
+    response = client.post(f'/api/event/{eid}/leave')
     assert response.status_code == 400
 
-    response = client.put(
-            f"/api/event/{eid}", json={"date": f"{future_time_str}"}, headers=header)
+    response = client.put(f"/api/event/{eid}", json={"date": f"{future_time_str}"})
     assert response.status_code == 200
 
     response = client.post(f'/api/event/{eid}/leave', headers=header)
@@ -376,27 +379,22 @@ def test_leave_event(client):
         {'email': second_member["email"]})
     assert second_member_before_leave
 
-    access_token = client_login(
-        client, admin_member["email"], admin_member["password"])
-    second_member_header = {"Authorization": f"Bearer {access_token}"}
+    response = client.post(f'/api/event/{new_event_eid}/join', json=joinEventPayload)
+    assert response.status_code == 200
 
     penalty_before = member_before_leave["penalty"]
 
-    access_token = client_login(
-        client, regular_member["email"], regular_member["password"])
-    header = {"Authorization": f"Bearer {access_token}"}
+    client_login(client, regular_member["email"], regular_member["password"])
 
-    response = client.post(
-        f'/api/event/{new_event_eid}/join', json=joinEventPayload, headers=header)
+    response = client.post(f'/api/event/{new_event_eid}/join', json=joinEventPayload)
     assert response.status_code == 200
 
+    client_login(client, admin_member["email"], admin_member["password"])
     # test that users on waiting list does not receive penalty
-    response = client.post(
-        f'/api/event/{new_event_eid}/join', json=joinEventPayload, headers=second_member_header)
+    response = client.post(f'/api/event/{new_event_eid}/join', json=joinEventPayload)
     assert response.status_code == 200
 
-    response = client.post(
-        f'/api/event/{new_event_eid}/leave', headers=second_member_header)
+    response = client.post(f'/api/event/{new_event_eid}/leave')
     assert response.status_code == 200
 
     second_member_after = db.members.find_one(
@@ -404,7 +402,11 @@ def test_leave_event(client):
     assert second_member_after and second_member_after["penalty"] - \
         second_member_before_leave["penalty"] == 0
 
-    response = client.post(f'/api/event/{new_event_eid}/leave', headers=header)
+
+    # Relogin again after login in as admin before
+    client_login(client, regular_member["email"], regular_member["password"])
+
+    response = client.post(f'/api/event/{new_event_eid}/leave')
     assert response.status_code == 200
 
     # checks if user gets a penalty as the leave is > 24 hours before event start
@@ -416,11 +418,10 @@ def test_leave_event(client):
     assert already_penalized_member
     penalty_before = already_penalized_member["penalty"]
 
-    response = client.post(
-        f'/api/event/{new_event_eid}/join', json=joinEventPayload, headers=header)
+    response = client.post(f'/api/event/{new_event_eid}/join', json=joinEventPayload)
     assert response.status_code == 200
 
-    response = client.post(f'/api/event/{new_event_eid}/leave', headers=header)
+    response = client.post(f'/api/event/{new_event_eid}/leave')
     assert response.status_code == 200
 
     # check that user doesn't get another penalty

@@ -42,9 +42,8 @@ def client(app):
         yield client
 
 
-def client_login(client, email, pwd):
+def client_login(client: TestClient, email, pwd):
     response = client.post(
         '/api/auth/login', json={'email': email, 'password': pwd})
     if response.status_code != 200:
         pytest.fail(f'Login error: {response.reason}')
-    return response.json()['accessToken']

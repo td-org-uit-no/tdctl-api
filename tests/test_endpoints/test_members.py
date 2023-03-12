@@ -32,9 +32,8 @@ def test_create_member(client):
 
 @authentication_required('/api/member', 'get')
 def test_get_member_associated_with_token(client):
-    access_token = client_login(client, regular_member['email'], regular_member['password'])
-    headers = {"Authorization": f"Bearer {access_token}"}
-    response = client.get('/api/member/', headers=headers)
+    client_login(client, regular_member['email'], regular_member['password'])
+    response = client.get('/api/member/')
     assert response.status_code == 200
     res_json = response.json()
     assert res_json['email'] == regular_member["email"]
@@ -42,8 +41,8 @@ def test_get_member_associated_with_token(client):
 
 @admin_required('api/members', 'get')
 def test_get_members(client):
-    access_token = client_login(client, admin_member["email"], admin_member["password"])
-    response = client.get('/api/members/', headers={"Authorization": f"Bearer {access_token}"})
+    client_login(client, admin_member["email"], admin_member["password"])
+    response = client.get('/api/members/')
     assert response.status_code == 200
     res_json = response.json()
 
@@ -57,9 +56,8 @@ def test_get_members(client):
 def test_get_member_by_id(client):
     member = db.members.find_one({'email': regular_member["email"]})
     assert member
-    access_token = client_login(client, regular_member['email'], regular_member['password'])
-    headers = {"Authorization": f"Bearer {access_token}"}
-    response = client.get(f"/api/member/{member['id']}", headers=headers)
+    client_login(client, regular_member['email'], regular_member['password'])
+    response = client.get(f"/api/member/{member['id']}")
     assert response.status_code == 200
     res_json = response.json()
     assert res_json['email'] == regular_member['email']
@@ -72,17 +70,16 @@ def test_get_member_by_email(client):
     non_existing_user = "not_a@user.com"
     invalid_email = "not_a@user"
 
-    access_token = client_login(client, admin_member['email'], admin_member['password'])
-    headers = {"Authorization": f"Bearer {access_token}"}
+    client_login(client, admin_member['email'], admin_member['password'])
 
-    response = client.get(f"/api/member/email/{non_existing_user}", headers=headers)
+    response = client.get(f"/api/member/email/{non_existing_user}")
     assert response.status_code == 404
 
-    response = client.get(f"/api/member/email/{invalid_email}", headers=headers)
+    response = client.get(f"/api/member/email/{invalid_email}")
     assert response.status_code == 422
 
     # test excpected behavior
-    response = client.get(f"/api/member/email/{member['email']}", headers=headers)
+    response = client.get(f"/api/member/email/{member['email']}")
     assert response.status_code == 200
     res = response.json()
     assert res["id"] == member["id"].hex
@@ -90,9 +87,8 @@ def test_get_member_by_email(client):
 @authentication_required('api/member/', 'put')
 def test_update_member(client):
     update_value = {"classof": "2016"}
-    access_token = client_login(client, regular_member["email"], regular_member["password"])
-    headers = {"Authorization": f"Bearer {access_token}"}
-    response = client.put("/api/member/", headers=headers, json=update_value)
+    client_login(client, regular_member["email"], regular_member["password"])
+    response = client.put("/api/member/", json=update_value)
     assert response.status_code == 201
     member = db.members.find_one({'email': regular_member["email"]})
     assert member and update_value["classof"] == member["classof"]
@@ -100,17 +96,16 @@ def test_update_member(client):
 @authentication_required('api/member/activate', 'post')
 def test_member_activation(client):
     # inactive member
-    access_token = client_login(client, second_member["email"], second_member["password"])
-    headers = {"Authorization": f"Bearer {access_token}"}
+    client_login(client, second_member["email"], second_member["password"])
     # set member to inactive as login activates users
     db.members.find_one_and_update({"email": second_member["email"]}, {"$set": {"status": f'{Status.inactive}'}})
     member = db.members.find_one({'email': second_member["email"]})
     assert member and member["status"] == Status.inactive
 
-    response = client.post("/api/member/activate", headers=headers)
+    response = client.post("/api/member/activate")
     assert response.status_code == 200
     member = db.members.find_one({'email': second_member["email"]})
     assert member and member["status"] == Status.active
 
-    response = client.post("/api/member/activate", headers=headers)
+    response = client.post("/api/member/activate")
     assert response.status_code == 400
