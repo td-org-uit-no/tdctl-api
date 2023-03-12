@@ -3,15 +3,15 @@ from fastapi import APIRouter, Request, Response, HTTPException, Depends
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from ..db import get_database
-from ..auth_helpers import create_token, create_refresh_token, decode_token, blacklist_token, is_blacklisted, authorize
-from ..models import Credentials, Status, Tokens, MemberDB, RefreshToken, RefreshTokenPayload, AccessTokenPayload, ChangePasswordPayload
+from ..auth_helpers import create_token, create_refresh_token, decode_token, blacklist_token, delete_auth_cookies, is_blacklisted, authorize, set_auth_cookies
+from ..models import Credentials, Status, MemberDB, RefreshTokenPayload, AccessTokenPayload, ChangePasswordPayload
 from ..utils import validate_password, passwordError
 
 router = APIRouter()
 
 
-@router.post("/login", response_model=Tokens, responses={401: {"model": None}})
-def login(request: Request, credentials: Credentials):
+@router.post("/login", responses={401: {"model": None}})
+def login(request: Request, credentials: Credentials, response: Response):
     credential_exception = HTTPException(401, "Invalid e-mail or password")
     db = get_database(request)
     member = db.members.find_one({'email': credentials.email.lower()})
@@ -32,25 +32,36 @@ def login(request: Request, credentials: Credentials):
         )
 
     token = create_token(member, request.app.config)
-    refreshToken = create_refresh_token(member, request.app.config)
-    return {"accessToken": token, "refreshToken": refreshToken}
+    refresh_token = create_refresh_token(member, request.app.config)
+    set_auth_cookies(response, token, refresh_token)
+    response.status_code = 200
+
+    return response
 
 
 @router.post('/logout')
-def logout(request: Request, refreshToken: RefreshToken):
+def logout(request: Request, response: Response):
     try:
+        refresh_token = request.cookies.get("refresh_token") or ""
         token = RefreshTokenPayload.parse_obj(decode_token(
-            refreshToken.refreshToken, request.app.config))
+            refresh_token, request.app.config))
     except:
         raise HTTPException(401, "Refresh token is invalid")
     blacklist_token(token, request.app.db)
-    return Response(status_code=200)
+    
+    delete_auth_cookies(response)
+    response.status_code = 200
+    return response
 
 
-@router.post('/renew', response_model=Tokens)
-def renew(request: Request, refreshToken: RefreshToken):
+@router.post('/renew')
+def renew(request: Request, response: Response):
+    refresh_token = request.cookies.get("refresh_token")
+    if not refresh_token:
+        raise HTTPException(401, 'Refresh token is not present')
+
     tokenPayload = RefreshTokenPayload.parse_obj(
-        decode_token(refreshToken.refreshToken, request.app.config))
+        decode_token(refresh_token, request.app.config))
 
     if is_blacklisted(tokenPayload, request.app.db):
         raise HTTPException(401, 'Refresh token is blacklisted')
@@ -61,9 +72,12 @@ def renew(request: Request, refreshToken: RefreshToken):
             400, 'The member associated with refresh token no longer exists')
     user = MemberDB.parse_obj(user)
     token = create_token(user, request.app.config)
-    refreshToken = create_refresh_token(user, request.app.config)
+    refresh_token = create_refresh_token(user, request.app.config)
+    set_auth_cookies(response, token, refresh_token)
     blacklist_token(tokenPayload, request.app.db)
-    return {"accessToken": token, "refreshToken": refreshToken}
+    response.status_code = 200
+
+    return response
 
 
 @router.post('/password')

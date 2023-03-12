@@ -1,5 +1,6 @@
-from fastapi import Depends, HTTPException, Request
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi import HTTPException, Request, Response
+import os
+from fastapi.security import HTTPBearer
 from pymongo.database import Database
 from datetime import datetime, timedelta
 from jwt import encode, decode, ExpiredSignatureError, DecodeError
@@ -26,39 +27,63 @@ def get_google_credentials(impersonate_email: str):
     credentials = service_account.Credentials.from_service_account_file(KEY_PATH,scopes=SCOPES).with_subject(impersonate_email)
     return credentials
 
-def authorize_admin(request: Request, token: HTTPAuthorizationCredentials = Depends(security_scheme)):
-    payload = authorize(request, token)
+def authorize_admin(request: Request):
+    payload = authorize(request)
     
     if payload.role != Role.admin:
         raise HTTPException(403, 'Insufficient privileges to access this resource')
     return payload
 
-def authorize(request: Request, token: HTTPAuthorizationCredentials = Depends(security_scheme)):
+def authorize(request: Request):
     '''
     Takes a request and goes through all the steps of authenticating it.
     On valid request, function will return the payload.
     If token used in the request is invalid, a number of errors can be raised
     and returned.
     '''
+    access_token = request.cookies.get("access_token")
+    if not access_token:
+        raise HTTPException(
+            401, 'Access token is not present')
+
     payload = AccessTokenPayload.parse_obj(decode_token(
-        token.credentials, request.app.config))
+        access_token, request.app.config))
+
     if not payload.access_token:
         raise HTTPException(
             401, 'The token is not an access token. Is this a refresh token?')
     return payload
 
-def optional_authentication(request: Request, token: HTTPAuthorizationCredentials = Depends(optional_security)):
+def optional_authentication(request: Request):
     '''
     Allows login to be optional, and if token is provided parse it using authorize. This gives the possibility for endpoints 
     to change behavior based on the user being logged in or not
     '''
-    if token:
-        return authorize(request, token)
-    return None
+    access_token = request.cookies.get("access_token")
+    if access_token:
+        try:
+            # Don't use decode_token function as it raises an exception which we
+            # do not want on optional authentication
+            payload = AccessTokenPayload.parse_obj(decode(access_token, request.app.config.SECRET_KEY, algorithms=['HS256']))
+            return payload.access_token and payload or None
+        except:
+            return None
+
+    else:
+        return None
 
 def role_required(accessToken: AccessTokenPayload, role: Role):
     if accessToken.role != role:
         raise HTTPException(403, 'No privileges to access this resource')
+
+def set_auth_cookies(response: Response, access_token: str, refresh_token: str):
+    secure = os.environ.get("API_ENV") and True or False
+    response.set_cookie('access_token', access_token, httponly = True, path = "/", secure=secure)
+    response.set_cookie('refresh_token', refresh_token, httponly = True, path = "/", secure=secure)
+
+def delete_auth_cookies(response: Response):
+    response.delete_cookie('access_token')
+    response.delete_cookie('refresh_token')
 
 
 def create_token(user: MemberDB, config: Config):
@@ -83,10 +108,10 @@ def create_refresh_token(user: MemberDB, config: Config):
     }, config.SECRET_KEY, algorithm='HS256')
 
 
-def decode_token(token: bytes, config: Config) -> dict:
+def decode_token(token: str, config: Config) -> dict:
     try:
         # Attempt to decode the token found in header
-        return decode(token.encode('utf-8'), config.SECRET_KEY, algorithms=['HS256'])
+        return decode(token, config.SECRET_KEY, algorithms=['HS256'])
     except DecodeError:
         # Missing segments
         raise HTTPException(401, 'Token has incorrect format.')

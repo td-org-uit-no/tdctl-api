@@ -21,7 +21,7 @@ def create_app():
     # CORS Middleware
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=['*'],
+        allow_origins=['http://localhost:3000', 'https://td-uit.no'],
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
