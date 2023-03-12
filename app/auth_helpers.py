@@ -69,15 +69,14 @@ def optional_authentication(request: Request):
         except:
             return None
 
-    else:
-        return None
+    return None
 
 def role_required(accessToken: AccessTokenPayload, role: Role):
     if accessToken.role != role:
         raise HTTPException(403, 'No privileges to access this resource')
 
 def set_auth_cookies(response: Response, access_token: str, refresh_token: str):
-    secure = os.environ.get("API_ENV") == "production" and True or False
+    secure = os.environ.get("API_ENV") == "production"
     response.set_cookie('access_token', access_token, httponly = True, path = "/", secure=secure)
     response.set_cookie('refresh_token', refresh_token, httponly = True, path = "/", secure=secure)
 

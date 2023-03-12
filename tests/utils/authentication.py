@@ -63,9 +63,6 @@ def perform_request(client, path, method, header=None):
 def validate_authentication(client, path, method) -> bool:
     response = perform_request(client, path, method)
 
-    # TODO: I am not sure about the way this is done. 401 is returned if there
-    # is no cookie, and 403 if there is a cookie but the token in the cookie is
-    # not valid
     return bool(response.status_code == 403 or response.status_code == 401)
 
 def validate_admin(client, path, method) -> bool:
