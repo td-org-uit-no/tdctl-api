@@ -101,9 +101,9 @@ def create_token(user: MemberDB, config: Config):
 def create_refresh_token(user: MemberDB, config: Config):
     return encode({
         # Token lifetime
-        "exp": datetime.utcnow() + timedelta(days=0, minutes=60),  # Expiry
-        "iat": datetime.utcnow(),                                  # Issued at
-        "jti": uuid4().hex,                                        # Token id
+        "exp": datetime.utcnow() + timedelta(days=7),  # Expiry
+        "iat": datetime.utcnow(),                      # Issued at
+        "jti": uuid4().hex,                            # Token id
         "user_id": user.id.hex
     }, config.SECRET_KEY, algorithm='HS256')
 
