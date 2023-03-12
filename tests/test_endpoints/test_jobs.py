@@ -26,19 +26,12 @@ new_job = {
 @admin_required("/api/jobs/", "post")
 def test_create_job(client):
 
-    access_token = client_login(
-        client, regular_member["email"], regular_member["password"])
-    headers = {"Authorization": f"Bearer {access_token}"}
-    response = client.post(
-        "/api/jobs/", json=new_job, headers=headers)
+    client_login(client, regular_member["email"], regular_member["password"])
+    response = client.post("/api/jobs/", json=new_job)
     assert response.status_code == 403
 
-    access_token = client_login(
-        client, admin_member["email"], admin_member["password"])
-
-    headers = {"Authorization": f"Bearer {access_token}"}
-    response = client.post(
-        "/api/jobs/", json=new_job, headers=headers)
+    client_login(client, admin_member["email"], admin_member["password"])
+    response = client.post("/api/jobs/", json=new_job)
 
     assert response.status_code == 200
     retval = response.json()
@@ -47,53 +40,40 @@ def test_create_job(client):
 
 
 def test_get_job(client):
-    access_token = client_login(
-        client, admin_member["email"], admin_member["password"])
-    headers = {"Authorization": f"Bearer {access_token}"}
+    client_login(client, admin_member["email"], admin_member["password"])
     # insert new Job
-    response = client.post(
-        "/api/jobs/", json=new_job, headers=headers)
+    response = client.post("/api/jobs/", json=new_job)
     assert response.status_code == 200
 
-    access_token = client_login(
-        client, regular_member["email"], regular_member["password"])
-    headers = {"Authorization": f"Bearer {access_token}"}
+    client_login(client, regular_member["email"], regular_member["password"])
 
     # Validate the new job can be accessed
     response = response.json()
-    job = client.get("/api/jobs/"+response["id"], headers=headers)
+    job = client.get("/api/jobs/"+response["id"])
     assert job.status_code == 200
     assert UUID(job.json()["id"]) == UUID(response['id'])
 
 
 @admin_required("/api/jobs/{uuid}/", "delete")
 def test_delete_job(client):
-    access_token_admin = client_login(
-        client, admin_member["email"], admin_member["password"])
-    headers = {"Authorization": f"Bearer {access_token_admin}"}
+    client_login(client, admin_member["email"], admin_member["password"])
 
-    response = client.post(
-        "/api/jobs/", json=new_job, headers=headers)
+    response = client.post("/api/jobs/", json=new_job)
     assert response.status_code == 200
     response = response.json()
 
-    delResponse = client.delete(
-        "/api/jobs/"+response["id"], headers=headers)
+    delResponse = client.delete("/api/jobs/"+response["id"])
     assert delResponse.status_code == 200
 
-    val_delete = client.delete(
-        "/api/jobs/"+response["id"], headers=headers)
+    val_delete = client.delete("/api/jobs/"+response["id"])
     assert val_delete.status_code == 400
 
 
 @admin_required("/api/jobs/{uuid}", "put")
 def test_update_job(client):
-    access_token_admin = client_login(
-        client, admin_member["email"], admin_member["password"])
-    headers = {"Authorization": f"Bearer {access_token_admin}"}
+    client_login(client, admin_member["email"], admin_member["password"])
 
-    response = client.post(
-        "/api/jobs/", json=new_job, headers=headers)
+    response = client.post("/api/jobs/", json=new_job)
     assert response.status_code == 200
     response = response.json()
 
@@ -101,9 +81,9 @@ def test_update_job(client):
     new_job_update["title"] = "New Title"
 
     update_response = client.put(
-        "/api/jobs/"+response["id"], json=new_job_update, headers=headers)
+        "/api/jobs/"+response["id"], json=new_job_update)
     assert update_response.status_code == 200
 
-    _test = client.get("/api/jobs/"+response["id"], headers=headers)
+    _test = client.get("/api/jobs/"+response["id"])
 
     assert _test.json()["title"] == new_job_update["title"]
