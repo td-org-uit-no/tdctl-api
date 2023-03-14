@@ -102,3 +102,7 @@ def change_password(passwords: ChangePasswordPayload, request: Request, token: A
         raise HTTPException(500)
 
     return Response(status_code=200)
+
+@router.get("/token-info")
+def token_info(token: AccessTokenPayload = Depends(authorize)):
+    return { "user_id": token.user_id, "role": token.role, "exp": token.exp }
