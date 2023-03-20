@@ -32,7 +32,6 @@ class MailPayload(BaseModel):
     to: List[EmailStr]
     sent_by: str = "no-reply@td-uit.no"
 
-
 class AccessTokenPayload(BaseModel):
     exp: int
     iat: int
@@ -117,12 +116,18 @@ class Participant(BaseModel):
     email: EmailStr
     classof: str
     phone: Optional[str]
-    role: str
+    role: Role
     food: bool
     transportation: bool
     dietaryRestrictions: str
     submitDate: datetime
     penalty: int
+    # indicate if participant has recieved an confirmation mail
+    confirmed: Optional[bool]
+
+
+class ParticipantPosUpdate(BaseModel):
+    updateList: List[create_model('ParticipantPosUpdate', id=(UUID4, ...), pos=(int, ...))]
 
 
 class EventInput(BaseModel):
@@ -145,9 +150,12 @@ class EventInput(BaseModel):
     picturePath: Optional[str]
     # time before event starting
     registrationOpeningDate: Optional[datetime]
+    confirmed: Optional[bool]
+
 
 class EventUserView(EventInput):
     eid: UUID4
+
 
 class Event(EventUserView):
     # The TD member responsible for the event
@@ -167,10 +175,12 @@ class EventUpdate(BaseModel):
     transportation: Optional[bool]
     food: Optional[bool]
     registrationOpeningDate: Optional[datetime]
+    confirmed: Optional[bool]
 
 
 class EventDB(Event):
     participants: List[Participant]
+
 
 class Tokens(BaseModel):
     accessToken: str

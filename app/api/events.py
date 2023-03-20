@@ -43,6 +43,8 @@ def create_event(request: Request, newEvent: EventInput, token: AccessTokenPaylo
         'registeredPenalties': [],
         'host': host_email
     }
+    if newEvent.bindingRegistration:
+        additionalFields['confirmed'] = False
 
     event = newEvent.dict()
     event.update(additionalFields)
@@ -351,6 +353,51 @@ def remove_participant(request: Request, id: str, uid: str, token: AccessTokenPa
                          "$pull": {"participants": {"id": member["id"]}}})
 
     return Response(status_code=200)
+
+@router.put('/{id}/updateParticipantsOrder/', dependencies=[Depends(validate_uuid)])
+async def reorder_participants(request: Request, id:str, position_update: ParticipantPosUpdate, token: AccessTokenPayload = Depends(authorize_admin)):
+    # blocks all request meaning no changes to the event when reordering
+    # TODO find a more scaleable solution
+    async with lock:
+        db = get_database(request)
+        event = get_event_or_404(db, id)
+        participants = event["participants"]
+        num_penalties = num_of_deprioritized_participants(participants)
+        # start index of where penalized user should be
+        pen_start_pos =  len(participants) - 1 - num_penalties
+
+        if not validate_pos_update(participants, position_update.updateList):
+            raise HTTPException(400, "Not valid: got invalid or outdated participant list")
+
+        for participant in position_update.updateList:
+            participant = participant.dict()
+            for i, p in enumerate(participants):
+                if p["id"] == participant["id"]:
+                    new_pos = participant["pos"]
+                    # Checks if a penalized member is moved in front of a non penalized member
+                    if p["penalty"] >= 2 and new_pos <= pen_start_pos:
+                        raise HTTPException(400, "User with penalty can't be rearranged")
+
+                    # no need to swap same index
+                    if new_pos == i:
+                        continue
+                    # swaps current pos with new pos
+                    participants[i], participants[new_pos] = participants[new_pos], participants[i]
+                    break
+
+        if event["maxParticipants"]:
+            for i, p in enumerate(participants):
+                # ensure fields exist
+                p = Participant.parse_obj(p).dict()
+                if p["confirmed"] and i >= event["maxParticipants"]:
+                   raise HTTPException(400, "Confirmed user cannot be moved to a non confirmed spot") 
+
+        res = db.events.find_one_and_update({'eid': event["eid"]}, {"$set": { "participants": participants}})
+
+        if res == None:
+            HTTPException(500, "Unexpected error when updating participants list")
+
+        return Response(status_code=200)
 
 @router.post('/{id}/confirm', dependencies=[Depends(validate_uuid)])
 async def confirmation(request: Request, id: str, token: AccessTokenPayload = Depends(authorize_admin)):
