@@ -29,11 +29,11 @@ def create_event(request: Request, newEvent: EventInput, token: AccessTokenPaylo
     db = get_database(request)
     # validates event date and registrationOpningDate
     validate_event_dates(newEvent)
-    
+
     member = db.members.find_one({'id': UUID(token.user_id)})
     if member == None:
         raise HTTPException(500, "Problem caller not found")
-    host_email =  member["email"]
+    host_email = member["email"]
 
     eid = uuid4()
     additionalFields = {
@@ -237,17 +237,27 @@ def join_event(request: Request, id: str, payload: JoinEventPayload, token: Acce
         'food': payload.food,
         'transportation': payload.transportation,
         'dietaryRestrictions': payload.dietaryRestrictions,
-        'submitDate': datetime.now()
+        'submitDate': datetime.now(),
+        'confirmed': False
     }
 
     new_fields = {**member, **participantData}
     participant = Participant.parse_obj(new_fields)
 
-    res = db.events.update_one({'eid': event['eid']}, {
-        "$addToSet": {"participants": participant.dict()}})
+    # find pos in query to have the newest list when inserting
+    pos = len(event["participants"])
+    if member["penalty"] < 2:
+        # members below penalty limit gets moved in front of penalized users
+        pos -= num_of_deprioritized_participants(event["participants"])
 
-    if res == None:
-        raise HTTPException(500, "Unexpected error updating database in join")
+    db.events.update_one(
+        {'eid': event['eid']}, 
+        {"$push": {
+            "participants": { 
+                "$each": [participant.dict()], 
+                "$position": pos}
+            }
+        })
 
     return Response(status_code=200)
 
@@ -258,14 +268,19 @@ def leave_event(request: Request, id: str, token: AccessTokenPayload = Depends(a
     event = get_event_or_404(db, id)
     member = db.members.find_one({'id': UUID(token.user_id)})
     penalty = should_penalize(event, token.user_id)
+
     if not member:
         raise HTTPException(400, "User could not be found")
+
+    if event_has_started(event):
+        raise HTTPException(400, "Cannot leave event after it started")
 
     participant = db.events.find_one({"eid": event["eid"]}, {"participants": {
         "$elemMatch": {"id": member["id"]}}})
 
     if not participant:
         raise HTTPException(400, "User not joined event!")
+
     try:
         participant['participants']
     except KeyError:
@@ -273,10 +288,11 @@ def leave_event(request: Request, id: str, token: AccessTokenPayload = Depends(a
 
     if penalty:
         res = db.events.update_one(
-            {'eid': event["eid"]}, 
+            {'eid': event["eid"]},
             {"$addToSet": {"registeredPenalties": member["id"]}}
         )
         # only give penalty if addToSet added a new entry
+        # TODO: Update penalty field in every Participants list where this user is joined
         if res.modified_count != 0:
             db.members.find_one_and_update(
                 {'id': member["id"]},
