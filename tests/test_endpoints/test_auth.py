@@ -1,8 +1,12 @@
+from app.db import get_test_db
+from app.models import Status
 from tests.conftest import client_login
 from tests.utils.authentication import authentication_required
 from app.auth_helpers import decode_token
 from app.config import config
 from tests.users import regular_member
+
+db = get_test_db()
 
 def test_login(client):
     unregister_user = {
@@ -13,6 +17,8 @@ def test_login(client):
     assert response.status_code == 401
     response = client.post("/api/auth/login", json=regular_member)
     assert response.status_code == 200
+    member = db.members.find_one({'email': regular_member["email"]})
+    assert member and member["status"] == Status.active
     res_json = response.json()
     token_payload = decode_token(res_json["accessToken"], config["test"])
     assert token_payload["access_token"] == True

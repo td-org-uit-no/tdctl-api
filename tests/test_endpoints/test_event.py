@@ -2,6 +2,7 @@ import os
 import json
 from uuid import UUID, uuid4
 from app.db import get_test_db
+from app.utils.event_utils import num_of_confirmed_participants, num_of_deprioritized_participants
 from tests.conftest import client_login
 from datetime import datetime, timedelta
 from tests.test_endpoints.test_members import payload
@@ -14,7 +15,8 @@ db = get_test_db()
 future_time = datetime.now() + timedelta(hours=6)
 future_time_str = future_time.strftime("%Y-%m-%d %H:%M:%S")
 valid_reg_opening_time = datetime.now() + timedelta(hours=3)
-valid_reg_opening_time_str = valid_reg_opening_time.strftime("%Y-%m-%d %H:%M:%S")
+valid_reg_opening_time_str = valid_reg_opening_time.strftime(
+    "%Y-%m-%d %H:%M:%S")
 
 new_event = {
     "title": "test event",
@@ -52,7 +54,6 @@ non_existing_eid = ""
 while non_existing_eid in open('db/seeds/test_seeds/test_events.json').read():
     non_existing_eid = uuid4().hex
     continue
-
 
 @admin_required("/api/event/", "post")
 def test_create_event(client):
@@ -97,6 +98,7 @@ def test_update_event(client):
     event = db.events.find_one({'eid': UUID(eid)})
     assert event and event["title"] == update_field["title"]
 
+
 @admin_required("/api/event/{uuid}", "delete")
 def test_delete_event(client):
     access_token = client_login(
@@ -104,7 +106,8 @@ def test_delete_event(client):
     admin_header = {"Authorization": f"Bearer {access_token}"}
 
     # test delete on non existing event
-    response = client.delete(f"api/event/{non_existing_eid}", headers=admin_header)
+    response = client.delete(
+        f"api/event/{non_existing_eid}", headers=admin_header)
     assert response.status_code == 404
 
     # test delete on existing event
@@ -114,6 +117,7 @@ def test_delete_event(client):
 
     event = db.events.find_one({'eid': eid})
     assert event == None
+
 
 def test_get_all_event(client):
     response = client.get("/api/event/")
@@ -187,6 +191,7 @@ def test_get_event_by_id(client):
     response = client.get(f'/api/event/{eid}', headers=admin_header)
     assert response.status_code == 200
 
+
 def test_get_event_participants(client):
     access_token = client_login(
         client, admin_member["email"], admin_member["password"])
@@ -203,25 +208,26 @@ def test_get_event_participants(client):
     response = client.get(f'/api/event/{eid}/participants', headers=headers)
     res_json = response.json()
     assert response.status_code == 401
-    
+
     # checks that list is only returned for regular users on open events
     response = client.get(f'/api/event/{eid}/participants', headers=headers)
     res_json = response.json()
     assert response.status_code == 401
 
     # Check expected behavior
-    response = client.get(f'/api/event/{eid}/participants', headers=admin_header)
+    response = client.get(
+        f'/api/event/{eid}/participants', headers=admin_header)
     res_json = response.json()
     assert response.status_code == 200
     assert len(res_json) == len(test_members)
-
 
     # remove maxParticipants to check that participants are returned
     update_field = {"maxParticipants": None}
     response = client.put(
         f"/api/event/{eid}", json=update_field, headers=admin_header)
     assert response.status_code == 200
-    response = client.get(f'/api/event/{eid}/participants', headers=admin_header)
+    response = client.get(
+        f'/api/event/{eid}/participants', headers=admin_header)
     res_json = response.json()
     assert response.status_code == 200
     assert len(res_json) == len(test_members)
@@ -255,17 +261,8 @@ def test_join_event(client):
     response = client.post("/api/member/", json=payload)
     assert response.status_code == 200
     # joins the event
-    response = client.post(
-        f'/api/event/{new_event_eid}/join', json=joinEventPayload, headers=admin_header)
-    assert response.status_code == 200
-
-    # checks response on full event
     access_token = client_login(client, payload["email"], payload["password"])
     headers = {"Authorization": f"Bearer {access_token}"}
-
-    response = client.post(
-        f'/api/event/{new_event_eid}/join', json=joinEventPayload, headers=headers)
-    assert response.status_code == 200
 
     # === Test joing non public/unopened event ===
     event["public"] = False
@@ -284,18 +281,46 @@ def test_join_event(client):
     assert response.status_code == 200
     # set registration to open in 3 hours
     response = client.put(
-            f'/api/event/{test_event_id}/', json={"registrationOpeningDate": valid_reg_opening_time_str, "public": True}, headers=admin_header)
+        f'/api/event/{test_event_id}/', json={"registrationOpeningDate": valid_reg_opening_time_str, "public": True}, headers=admin_header)
     assert response.status_code == 200
     # user should not be able to join before event registration opens
     response = client.post(
         f'/api/event/{test_event_id}/join', json=joinEventPayload, headers=headers)
     assert response.status_code == 403
     # admin should be able to join
-    access_token = client_login(client, second_admin["email"], second_admin["password"])
+    access_token = client_login(
+        client, second_admin["email"], second_admin["password"])
     second_admin_header = {"Authorization": f"Bearer {access_token}"}
     response = client.post(
         f'/api/event/{test_event_id}/join', json=joinEventPayload, headers=second_admin_header)
     assert response.status_code == 200
+
+    # === test join ordering ===
+    eid = test_events[0]["eid"]
+    
+    # setup event
+    response = client.put(
+            f"/api/event/{eid}", json={"date": f"{future_time_str}"}, headers=admin_header)
+    assert response.status_code == 200
+
+    new_member = db.members.find_one({"email": payload["email"]})
+    assert new_member
+
+    access_token = client_login(client, payload["email"], payload["password"])
+    new_member_header = {"Authorization": f"Bearer {access_token}"}
+
+    response = client.post(
+        f'/api/event/{eid}/join', json=joinEventPayload, headers=new_member_header)
+    assert response.status_code == 200
+    # check that joined non penalized comes in front of penalized member
+    updated_event = db.events.find_one({"eid": UUID(eid)})
+    assert updated_event
+    assert num_of_deprioritized_participants(updated_event["participants"]) != 0
+    for p in updated_event["participants"]:
+        if p["id"] == new_member["id"]:
+            break
+        # should not be a participants with penalty in front of joined participant 
+        assert p["penalty"] < 2
 
 
 @authentication_required("/api/event/{uuid}/leave", "post")
@@ -321,24 +346,34 @@ def test_leave_event(client):
     # checks for leaving as a user not joined a event
     response = client.post(f'/api/event/{eid}/leave', headers=header)
     assert response.status_code == 400
-    
+
     # checks for leaving as non existing user
     response = client.post(
         f'/api/event/{non_existing_eid}/leave', headers=header)
     assert response.status_code == 404
-    
+
     # all seeding members are joined every event
     access_token = client_login(
-        client, regular_member["email"], regular_member["password"])
+        client, admin_member["email"], admin_member["password"])
     header = {"Authorization": f"Bearer {access_token}"}
+
+    # should not be able to leave finished event
+    response = client.post(f'/api/event/{eid}/leave', headers=header)
+    assert response.status_code == 400
+
+    response = client.put(
+            f"/api/event/{eid}", json={"date": f"{future_time_str}"}, headers=header)
+    assert response.status_code == 200
 
     response = client.post(f'/api/event/{eid}/leave', headers=header)
     assert response.status_code == 200
 
     # tests penalty assignment for leaving event with binding registration starting in > 24 hours
-    member_before_leave = db.members.find_one({'email': regular_member["email"]})
+    member_before_leave = db.members.find_one(
+        {'email': regular_member["email"]})
     assert member_before_leave
-    second_member_before_leave = db.members.find_one({'email': second_member["email"]})
+    second_member_before_leave = db.members.find_one(
+        {'email': second_member["email"]})
     assert second_member_before_leave
 
     access_token = client_login(
@@ -347,18 +382,27 @@ def test_leave_event(client):
 
     penalty_before = member_before_leave["penalty"]
 
-    response = client.post(f'/api/event/{new_event_eid}/join', json=joinEventPayload, headers=header)
+    access_token = client_login(
+        client, regular_member["email"], regular_member["password"])
+    header = {"Authorization": f"Bearer {access_token}"}
+
+    response = client.post(
+        f'/api/event/{new_event_eid}/join', json=joinEventPayload, headers=header)
     assert response.status_code == 200
 
     # test that users on waiting list does not receive penalty
-    response = client.post(f'/api/event/{new_event_eid}/join', json=joinEventPayload, headers=second_member_header)
+    response = client.post(
+        f'/api/event/{new_event_eid}/join', json=joinEventPayload, headers=second_member_header)
     assert response.status_code == 200
 
-    response = client.post(f'/api/event/{new_event_eid}/leave', headers=second_member_header)
+    response = client.post(
+        f'/api/event/{new_event_eid}/leave', headers=second_member_header)
     assert response.status_code == 200
 
-    second_member_after = db.members.find_one({'email': second_member["email"]})
-    assert second_member_after and second_member_after["penalty"] - second_member_before_leave["penalty"] == 0
+    second_member_after = db.members.find_one(
+        {'email': second_member["email"]})
+    assert second_member_after and second_member_after["penalty"] - \
+        second_member_before_leave["penalty"] == 0
 
     response = client.post(f'/api/event/{new_event_eid}/leave', headers=header)
     assert response.status_code == 200
@@ -367,11 +411,13 @@ def test_leave_event(client):
     member = db.members.find_one({'email': regular_member["email"]})
     assert member and member["penalty"] - penalty_before == 1
 
-    already_penalized_member = db.members.find_one({'email': regular_member["email"]})
+    already_penalized_member = db.members.find_one(
+        {'email': regular_member["email"]})
     assert already_penalized_member
     penalty_before = already_penalized_member["penalty"]
 
-    response = client.post(f'/api/event/{new_event_eid}/join', json=joinEventPayload, headers=header)
+    response = client.post(
+        f'/api/event/{new_event_eid}/join', json=joinEventPayload, headers=header)
     assert response.status_code == 200
 
     response = client.post(f'/api/event/{new_event_eid}/leave', headers=header)
@@ -449,3 +495,171 @@ def test_export_event(client):
     response = client.get(
         f'/api/event/{non_existing_eid}/export', headers=headers)
     assert response.status_code == 404
+
+
+@admin_required("/api/event/{uuid}/confirm", "post")
+def test_confirm_event(client):
+    eid = test_events[0]["eid"]
+
+    access_token = client_login(
+        client, admin_member["email"], admin_member["password"])
+    headers = {"Authorization": f"Bearer {access_token}"}
+    
+    # check confirmation is not allowed on finished events
+    response = client.post(
+        f'/api/event/{eid}/confirm', headers=headers)
+    assert response.status_code == 400
+
+    # update to valid date but not public
+    response = client.put(
+            f"/api/event/{eid}", json={"date": f"{future_time_str}", "maxParticipants": 1, "public": False}, headers=headers)
+    assert response.status_code == 200
+
+    response = client.post(
+        f'/api/event/{eid}/confirm', headers=headers)
+    assert response.status_code == 400
+
+    # setup for confirmation on event who isn't open for registration
+    response = client.put(
+            f"/api/event/{eid}", json={"public": True, "registrationOpeningDate": f"{future_time_str}"}, headers=headers)
+    assert response.status_code == 200
+
+    response = client.post(
+        f'/api/event/{eid}/confirm', headers=headers)
+    assert response.status_code == 400
+
+    response = client.put(
+            f"/api/event/{eid}", json={"registrationOpeningDate": None}, headers=headers)
+    assert response.status_code == 200
+
+    # check expected behavior
+    response = client.post(
+        f'/api/event/{eid}/confirm', headers=headers)
+    assert response.status_code == 200
+
+    event = db.events.find_one({"eid": UUID(eid)})
+    assert event and num_of_confirmed_participants(event["participants"]) == event["maxParticipants"]
+    
+    response = client.post(
+        f'/api/event/{eid}/confirm', headers=headers)
+    # should get 400 when all participants have gotten their confirmation mail
+    assert response.status_code == 400
+
+    response = client.put(
+            f"/api/event/{eid}", json={"maxParticipants": None}, headers=headers)
+    assert response.status_code == 200
+
+    response = client.post(
+        f'/api/event/{eid}/confirm', headers=headers)
+    assert response.status_code == 200
+
+    event = db.events.find_one({"eid": UUID(eid)})
+    # checks that all participants gets confirmation when there are no limit
+    assert event and num_of_confirmed_participants(event["participants"]) == len(event["participants"])
+
+@admin_required("/api/event/{uuid}/updateParticipantsOrder", "put")
+def test_event_reorder(client):
+    eid = test_events[0]["eid"]
+    event = db.events.find_one({"eid": UUID(eid)})
+    assert event
+    max_idx = len(event["participants"]) - 1
+    penalty_idx = None
+
+    access_token = client_login(
+        client, admin_member["email"], admin_member["password"])
+    headers = {"Authorization": f"Bearer {access_token}"}
+
+    new_order = []
+    for i, p in enumerate(event["participants"]):
+        if p["penalty"] >= 2:
+            penalty_idx = i
+        new_order.append({"id": p["id"].hex, "pos": i})
+
+    # test setup not done properly all events should have 1 penalized member
+    assert penalty_idx != None
+
+    new_order[0]["pos"] = 1
+    new_order[1]["pos"] = 0
+    # test expected behavior
+    response = client.put(
+            f'/api/event/{eid}/updateParticipantsOrder', json={"updateList": new_order}, headers=headers)
+    assert response.status_code == 200
+    event_after = db.events.find_one({"eid": UUID(eid)})
+    assert event_after
+    diff = False
+    participants = event_after["participants"]
+    for i,p in enumerate(event["participants"]):
+        if p["id"] != participants[i]["id"]:
+            diff = True
+            break
+    assert diff == True
+
+    # checks that order is actually updated
+    assert participants[0]["id"] == UUID(new_order[1]["id"])
+    assert participants[1]["id"] == UUID(new_order[0]["id"])
+
+    invalid_reorder = new_order
+    invalid_reorder[0]["pos"] = penalty_idx
+    invalid_reorder[penalty_idx]["pos"] = 0
+
+    # checks that penalized members cannot be moved in front of non penalized member
+    response = client.put(
+            f'/api/event/{eid}/updateParticipantsOrder', json={"updateList": invalid_reorder}, headers=headers)
+    assert response.status_code == 400
+
+    invalid_reorder = new_order
+    invalid_reorder[0]["pos"] = max_idx + 1
+
+    # checks that reorder only accepts valid pos input
+    response = client.put(
+            f'/api/event/{eid}/updateParticipantsOrder', json={"updateList": invalid_reorder}, headers=headers)
+    assert response.status_code == 400
+
+    invalid_reorder[0]["pos"] = -1
+
+    response = client.put(
+            f'/api/event/{eid}/updateParticipantsOrder', json={"updateList": invalid_reorder}, headers=headers)
+    assert response.status_code == 400
+
+    
+    response = client.put(
+            f"/api/event/{eid}", json={"maxParticipants": 2, "date": f"{future_time_str}"}, headers=headers)
+    assert response.status_code == 200
+
+    # tests that a non joined user can be "reorder into the event"
+    # creates an non joined member who has not joined the event
+    response = client.post("/api/member/", json=payload)
+    assert response.status_code == 200
+    new_member = db.members.find_one({"email": payload["email"]})
+    assert new_member
+
+    invalid_id = new_order
+    invalid_id[0]["id"] = new_member["id"].hex
+    response = client.put(
+            f'/api/event/{eid}/updateParticipantsOrder', json={"updateList": invalid_id}, headers=headers)
+    assert response.status_code == 400
+
+    # tests for reordering with duplicates 
+    invalid_id = new_order
+    invalid_id[1] = new_order[0]
+
+    response = client.put(
+            f'/api/event/{eid}/updateParticipantsOrder', json={"updateList": invalid_id}, headers=headers)
+    assert response.status_code == 400
+    
+    # setup for reorder after confirmation is sent
+    response = client.put(
+            f"/api/event/{eid}", json={"maxParticipants": 1}, headers=headers)
+    assert response.status_code == 200
+
+    response = client.post(
+        f'/api/event/{eid}/confirm', headers=headers)
+    assert response.status_code == 200
+
+    # reorder a confirmed member to a non confirmed spot
+    new_order[0]["pos"] = 1
+    new_order[1]["pos"] = 0
+
+    response = client.put(
+            f'/api/event/{eid}/updateParticipantsOrder', json={"updateList": new_order}, headers=headers)
+    assert response.status_code == 400
