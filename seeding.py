@@ -31,7 +31,7 @@ def seed_random_member(db, number):
             id += 1
             continue
         uid = uuid4()
-        pwd = generate_password_hash(f'{name}%{id}')
+        pwd = generate_password_hash(f'{name}{id}!234')
         user = {
             'id': uid,
             'realName': f'{name}{id}',
@@ -72,12 +72,16 @@ def seed_events(db, seed_path):
 
     for event in events:
         event["host"] = responsible_member
+        if event["bindingRegistration"]:
+            event["confirmed"] = False
         db_event = db.events.find_one({'eid': event["eid"]})
         if db_event:
             continue
 
         event["participants"] = []
-        for member in db["members"].find({}):
+        # ensure low pri user are inserted at the bottom of participants list
+        members = db["members"].find().sort("penalty", 1)
+        for member in members:
             member.pop("graduated")
             member.pop("password")
             member.pop("_id")
@@ -91,7 +95,7 @@ def seed_events(db, seed_path):
             member['submitDate'] = datetime.now(
             ) + timedelta(hours=random.choices(
                 dates, weights=date_weights, k=1)[0])
-
+            member['confirmed'] = False
             event["participants"].append(member)
 
         img_dst = "db/eventImages/"

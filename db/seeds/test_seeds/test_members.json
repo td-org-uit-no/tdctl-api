@@ -6,7 +6,7 @@
     "classof": "2015",
     "graduated": false,
     "phone": "",
-    "status": "INACTIVE",
+    "status": "inactive",
     "role": "member",
     "penalty": 0
   },
@@ -17,9 +17,9 @@
     "classof": "2018",
     "graduated": false,
     "phone": "",
-    "status": "INACTIVE",
+    "status": "inactive",
     "role": "member",
-    "penalty": 0
+    "penalty": 2
   },
   {
       "realName": "Admin Adminsen",
@@ -28,7 +28,7 @@
       "classof": "2018",
       "graduated": false,
       "phone": "12345678",
-      "status": "ACTIVE",
+      "status": "active",
       "role": "admin",
       "penalty": 0
   },
@@ -39,7 +39,7 @@
       "classof": "2018",
       "graduated": false,
       "phone": "87654321",
-      "status": "ACTIVE",
+      "status": "active",
       "role": "admin",
       "penalty": 0
   }
