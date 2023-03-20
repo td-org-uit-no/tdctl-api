@@ -4,7 +4,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from ..db import get_database
 from ..auth_helpers import create_token, create_refresh_token, decode_token, blacklist_token, is_blacklisted, authorize
-from ..models import Credentials, Tokens, MemberDB, RefreshToken, RefreshTokenPayload, AccessTokenPayload, ChangePasswordPayload
+from ..models import Credentials, Status, Tokens, MemberDB, RefreshToken, RefreshTokenPayload, AccessTokenPayload, ChangePasswordPayload
 from ..utils import validate_password, passwordError
 
 router = APIRouter()
@@ -13,15 +13,23 @@ router = APIRouter()
 @router.post("/login", response_model=Tokens, responses={401: {"model": None}})
 def login(request: Request, credentials: Credentials):
     credential_exception = HTTPException(401, "Invalid e-mail or password")
-
     db = get_database(request)
     member = db.members.find_one({'email': credentials.email.lower()})
+
     if not member:
         raise HTTPException(401, 'Invalid e-mail')
         #raise credential_exception
     member = MemberDB.parse_obj(member)
+
     if not check_password_hash(member.password, credentials.password):
         raise credential_exception
+
+    if member.status != Status.active:
+        # activate members on login
+        db.members.find_one_and_update(
+            {'id': member.id},
+            {"$set": {'status': f'{Status.active}'}}
+        )
 
     token = create_token(member, request.app.config)
     refreshToken = create_refresh_token(member, request.app.config)
