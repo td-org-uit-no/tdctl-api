@@ -14,7 +14,6 @@ def validate_registartion_opening_time(event_date, opening_date):
     return opening_date
 
 def validate_event_dates(event):
-    print(event.date, event.registrationOpeningDate)
     try:
         event_date = datetime.strptime(str(event.date), "%Y-%m-%d %H:%M:%S")
     except ValueError:
@@ -34,8 +33,6 @@ def validate_cancellation_time(start_date):
         date_str = now.strftime("%Y-%m-%d %H:%M:%S")
         date = datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S")
         diff = abs(start_date-date)
-        print(diff)
-        print(diff>=timedelta(hours=cancellation_threshold))
     except ValueError:
         return False
     return diff>=timedelta(hours=cancellation_threshold)
@@ -65,5 +62,37 @@ def valid_registration(opening_date):
         # validates format
         registration_start = datetime.strptime(str(opening_date), "%Y-%m-%d %H:%M:%S")
     except ValueError:
-        return False
+        # sets registration open if field is malformed
+        return True
     return datetime.now()>registration_start
+
+# validates position reorder input
+#   - id:
+#     - all participants in reorder list is already joined the event
+#   - pos
+#     - validates that all pos arguments are valid i.e between 0 and len(participants)
+def validate_pos_update(participants, updateList):
+    valid_args = list(range(0, len(participants)))
+    joined_ids = [ p["id"] for p in participants ]
+    for p in updateList:
+        try:
+            valid_args.remove(p.pos)
+            joined_ids.remove(p.id)
+        except ValueError:
+            return False
+    return len(valid_args) == 0 and len(joined_ids) == 0
+
+def event_has_started(event):
+    try :
+        start_date = datetime.strptime(str(event["date"]), "%Y-%m-%d %H:%M:%S")
+        current_time = datetime.now() 
+        return current_time > start_date
+    except ValueError:
+        return True
+
+def num_of_deprioritized_participants(participants):
+    return sum(p["penalty"] > 1 for p in participants)
+
+def num_of_confirmed_participants(participants):
+    return sum(p["confirmed"] == True for p in participants)
+
