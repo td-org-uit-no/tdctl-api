@@ -34,8 +34,6 @@ def run_mongodb_container(client, container_name):
         remove=True
     )
 # function to start up a container for running test
-
-
 def start_mongodb_container(client):
     # handle error types
     responses = {

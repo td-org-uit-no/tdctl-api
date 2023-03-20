@@ -36,5 +36,7 @@ services:
 
 networks:
   backend:
+    # ensures pytest_docker is always on the same network
+    name: docker_backend
     external: false
     driver: bridge
