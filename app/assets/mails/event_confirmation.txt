@@ -1,0 +1,14 @@
+Hei,
+
+Du har fått plass på $EVENT_NAME$.
+
+Dato: $DATE$
+Tidspunkt: $TIME$
+Lokasjon: $LOCATION$
+
+Skjer det endringer på arrangementet så vil dette bli gitt beskjed om. Se også: https://td-uit.no/ for mere info om arrangementet og kommende arrangementer.
+
+Hvis du ikke kan delta vennligst gi beskjed snarest, vi ønsker beskjed senest 24t før arrangementet starter. Det blir også registrert oppmøte. Hvis du ikke møter opp eller melder deg av for seint registreres dette og gjentatte hendelser vil gi nedsatt prioritet på framtidige påmeldinger.
+
+Mvh
+Tromsøstudentenes Dataforening
