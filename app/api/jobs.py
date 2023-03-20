@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Request, HTTPException, Depends, Response
 from ..db import get_database, get_JobImage_path
-from ..models import JobItem, JobItemPayload, AccessTokenPayload
+from ..models import JobItem, JobItemPayload, AccessTokenPayload, UpdateJob
 from app.utils.validation import validate_image_file_type, validate_uuid
 from ..auth_helpers import authorize_admin
 from fastapi.datastructures import UploadFile
@@ -57,9 +57,12 @@ def delete_job_by_id(request: Request, id: str, token: AccessTokenPayload = Depe
 
 
 @router.put('/{id}')
-def update_job(request: Request, id: str, job: JobItemPayload, token: AccessTokenPayload = Depends(authorize_admin)):
+def update_job(request: Request, id: str, job: UpdateJob, token: AccessTokenPayload = Depends(authorize_admin)):
     db = get_database(request)
     orig_job = db.jobs.find_one({'id': UUID(id)})
+
+    if not orig_job:
+        raise HTTPException(404, "Job could not be found")
 
     _job = job.dict(exclude_unset=True)
     if len(_job) == 0:
@@ -71,10 +74,11 @@ def update_job(request: Request, id: str, job: JobItemPayload, token: AccessToke
         raise HTTPException(
             400, "Cannot remove field as this is required filed for all jobs")
 
-    retval = db.jobs.find_one_and_update(
+    res = db.jobs.find_one_and_update(
         {'id': UUID(id)},  {'$set': _job})
-    if not retval:
-        raise HTTPException(400, "Job could not be found")
+
+    if not res:
+        raise HTTPException(500, "Error updating job")
 
     return Response(status_code=200)
 

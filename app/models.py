@@ -220,6 +220,18 @@ class JobItemPayload(BaseModel):
     start_date: Optional[datetime]
     due_date: Optional[datetime]
 
+class UpdateJob(BaseModel):
+    company: Optional[str]
+    title: Optional[str]
+    type: Optional[str]
+    tags: Optional[List[str]]
+    description_preview: Optional[str]
+    description: Optional[str]
+    published_date: Optional[datetime]
+    location: Optional[str]
+    link: Optional[str]
+    start_date: Optional[datetime]
+    due_date: Optional[datetime]
 
 class JobItem(JobItemPayload):
     id: UUID4
