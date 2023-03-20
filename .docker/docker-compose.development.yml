@@ -2,11 +2,9 @@ version: "3.5"
 services:
   tdctl_api:
     image: tdctl_api:latest
-    restart: always
     container_name: tdctl_api
-    build: ../
     volumes:
-        - ../:/app
+      - ../:/app
     build:
       context: ../
       dockerfile: .docker/dockerfile.api.development
@@ -28,7 +26,9 @@ services:
     hostname: td_mongodb
     image: mongo:latest
     command: mongod --port 26900
-    restart: always
+    restart: unless-stopped
+    ports:
+      - "26900:26900"
     volumes:
       - ../db/db_data:/data/db
     networks:
