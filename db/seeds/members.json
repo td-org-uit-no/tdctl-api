@@ -6,20 +6,20 @@
     "classof": "1984",
     "graduated": false,
     "phone": "",
-    "status": "INACTIVE",
+    "status": "inactive",
     "role": "admin",
     "penalty": 0
   },
   {
     "realName": "First Lastname",
     "email": "mail@mail.com",
-    "password": "pbkdf2:sha256:260000$vpuGwDvLJ5NRVb2S$da9eba7f81f5138e3fa1cdf855d41ce3971f55162208948cc1bc8b9d8d3495d7",
+    "password": "pbkdf2:sha256:260000$EYUpKygcwxH7gb08$bb57edda2cb281831107b1ef5449db04e7881ef3f7c796c8c6cd651888677e9c",
     "classof": "2015",
     "graduated": false,
     "phone": "",
-    "status": "INACTIVE",
+    "status": "inactive",
     "role": "member",
-    "penalty": 0
+    "penalty": 2
 
   },
   {
@@ -29,7 +29,7 @@
     "classof": "2018",
     "graduated": false,
     "phone": "12345678",
-    "status": "ACTIVE",
+    "status": "active",
     "role": "admin",
     "penalty": 0
   },
@@ -40,7 +40,7 @@
     "classof": "2015",
     "graduated": false,
     "phone": "87654321",
-    "status": "ACTIVE",
+    "status": "active",
     "role": "admin",
     "penalty": 0
   }
