@@ -36,6 +36,7 @@ def client(app):
     test_seed_path = "db/seeds/test_seeds"
 
     with TestClient(app) as client:
+        # important that test_members.json always has a penalized member
         seed_members(app.db, f"{test_seed_path}/test_members.json")
         seed_events(app.db, f"{test_seed_path}/test_events.json")
         yield client

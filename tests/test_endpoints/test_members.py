@@ -1,6 +1,7 @@
 from app.db import get_test_db
+from app.models import Role, Status
 from tests.conftest import client_login
-from tests.users import regular_member, admin_member
+from tests.users import regular_member, admin_member, second_member
 import json
 
 from tests.utils.authentication import admin_required, authentication_required
@@ -26,6 +27,8 @@ def test_create_member(client):
     db = get_test_db()
     new_member = db.members.find_one({'email': payload["email"]})
     assert new_member != None
+    assert new_member["status"] == Status.inactive
+    assert new_member["role"] == Role.unconfirmed
 
 @authentication_required('/api/member', 'get')
 def test_get_member_associated_with_token(client):
@@ -96,9 +99,18 @@ def test_update_member(client):
 
 @authentication_required('api/member/activate', 'post')
 def test_member_activation(client):
-    access_token = client_login(client, regular_member["email"], regular_member["password"])
+    # inactive member
+    access_token = client_login(client, second_member["email"], second_member["password"])
     headers = {"Authorization": f"Bearer {access_token}"}
+    # set member to inactive as login activates users
+    db.members.find_one_and_update({"email": second_member["email"]}, {"$set": {"status": f'{Status.inactive}'}})
+    member = db.members.find_one({'email': second_member["email"]})
+    assert member and member["status"] == Status.inactive
+
     response = client.post("/api/member/activate", headers=headers)
     assert response.status_code == 200
-    member = db.members.find_one({'email': regular_member["email"]})
-    assert member and member["status"] == "active"
+    member = db.members.find_one({'email': second_member["email"]})
+    assert member and member["status"] == Status.active
+
+    response = client.post("/api/member/activate", headers=headers)
+    assert response.status_code == 400
