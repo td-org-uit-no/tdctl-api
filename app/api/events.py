@@ -8,16 +8,20 @@ from pydantic import ValidationError
 from starlette.responses import FileResponse
 from starlette.background import BackgroundTasks
 from uuid import uuid4, UUID
-from app.utils.event_utils import should_penalize, valid_registration, validate_event_dates
+from app.utils.event_utils import event_has_started, num_of_confirmed_participants, num_of_deprioritized_participants, should_penalize, valid_registration, validate_event_dates, validate_pos_update
 from app.utils.validation import validate_image_file_type, validate_uuid
 from ..auth_helpers import authorize, authorize_admin, optional_authentication
 from ..db import get_database, get_image_path, get_export_path
-from ..models import Event, EventDB, AccessTokenPayload, EventInput, EventUpdate, EventUserView, JoinEventPayload, Participant
+from ..models import Event, EventDB, AccessTokenPayload, EventInput, EventUpdate, EventUserView, JoinEventPayload, Participant, ParticipantPosUpdate, Role
 from .utils import get_event_or_404
 import pandas as pd
+from .mail import send_mail
+from ..models import MailPayload
+import asyncio
+
 
 router = APIRouter()
-
+lock = asyncio.Lock()
 
 @router.post('/')
 def create_event(request: Request, newEvent: EventInput, token: AccessTokenPayload = Depends(authorize_admin)):
