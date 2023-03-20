@@ -9,7 +9,7 @@ from .mail import send_mail
 
 from app.utils.validation import validate_uuid
 
-from ..models import Member, MemberInput, MemberUpdate, AccessTokenPayload, MailPayload, ForgotPasswordPayload
+from ..models import Member, MemberDB, MemberInput, MemberUpdate, AccessTokenPayload, MailPayload, ForgotPasswordPayload, Role, Status
 from ..auth_helpers import authorize, authorize_admin, role_required
 from ..db import get_database
 from ..utils import validate_password, passwordError
@@ -30,8 +30,8 @@ def create_new_member(request: Request, newMember: MemberInput):
         'id': uid,
         'email': newMember.email.lower(),  # Lowercase e-mail
         'password': pwd,
-        'role': 'unconfirmed',
-        'status': 'inactive',
+        'role': f'{Role.unconfirmed}',
+        'status': f'{Status.inactive}',
         'penalty': 0
     }
 
@@ -83,9 +83,8 @@ def get_member_by_email(request: Request, email: EmailStr, token: AccessTokenPay
     return {'id': member['id'].hex}
 
 @router.get("s/", response_model=List[Member])
-def get_all_members(request: Request, token: AccessTokenPayload = Depends(authorize)):
+def get_all_members(request: Request, token: AccessTokenPayload = Depends(authorize_admin)):
     '''List all members objects'''
-    role_required(token, 'admin')
     db = get_database(request)
     return [Member.parse_obj(m) for m in db.members.find()]
 
@@ -96,9 +95,14 @@ def change_status(request: Request, token: AccessTokenPayload = Depends(authoriz
     member = db.members.find_one({'id': UUID(token.user_id)})
     if not member:
         raise HTTPException(404, 'Member not found')
+
+    member = MemberDB.parse_obj(member)
+    if member.status == Status.active:
+        raise HTTPException(400, "member already activated")
+
     result = db.members.find_one_and_update(
-        {'id': member["id"]},
-        {"$set": {'status': 'active'}}
+        {'id': member.id},
+        {"$set": {'status': f'{Status.active}'}}
     )
     if not result:
         raise HTTPException(500)
@@ -119,8 +123,8 @@ def confirm_email(request: Request, code: str):
     user = db.members.find_one_and_update(
         {'id': validated['user_id']},
         {"$set":
-         {'role': 'member',
-          'status': 'active'}
+         {'role': f'{Role.member}',
+          'status': f'{Status.active}'}
          },
         return_document=ReturnDocument.AFTER)
     if not user:
@@ -146,7 +150,7 @@ def generate_new_confirmation_code(request: Request, email: str):
         # Member assoiciated with the email was not found
         raise NonExistentMemberError
 
-    if member['role'] != 'unconfirmed':
+    if member['role'] != Role.unconfirmed:
         # Member associated with the email is already activated
         raise MemberAlreadyConfirmedError
 

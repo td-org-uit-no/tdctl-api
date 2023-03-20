@@ -6,7 +6,7 @@ from pydantic.types import PositiveInt
 from werkzeug.security import generate_password_hash
 from app.utils.validation import validate_password, validate_uuid
 from ..db import get_database
-from ..models import AccessTokenPayload, AdminMemberUpdate, MemberInput, PenaltyInput
+from ..models import AccessTokenPayload, AdminMemberUpdate, MemberInput, PenaltyInput, Role, Status
 from ..auth_helpers import authorize_admin
 from ..utils import passwordError
 
@@ -21,10 +21,10 @@ def give_existing_user_admin_privileges(request: Request, id: str, token: Access
     if not member:
         raise HTTPException(404, "User not found")
 
-    if member["role"] == "admin":
+    if member["role"] == Role.admin:
         raise HTTPException(400, "User already admin")
     
-    results = db.members.find_one_and_update({'id': member["id"]}, {'$set': {'role': 'admin'}})
+    results = db.members.find_one_and_update({'id': member["id"]}, {'$set': {'role': f'{Role.admin}'}})
 
     if not results:
         raise HTTPException(500)
@@ -45,8 +45,8 @@ def create_admin_user(request: Request, newAdmin: MemberInput, token: AccessToke
         'id': uid,
         'email': newAdmin.email.lower(),  # Lowercase e-mail
         'password': pwd,
-        'role': 'admin',
-        'status': 'inactive',
+        'role': f'{Role.admin}',
+        'status': f'{Status.inactive}',
     }
 
     admin = newAdmin.dict()
@@ -79,7 +79,7 @@ def update_member(request: Request, id: str, memberData: AdminMemberUpdate, toke
     if not member:
         raise HTTPException(404, "User not found")
 
-    if member["role"] == "admin":
+    if member["role"] == Role.admin:
         raise HTTPException(403, "Admin cannot update another admin")
 
     result = db.members.find_one_and_update(
@@ -101,7 +101,7 @@ def delete_member(request: Request, id: str, token: AccessTokenPayload = Depends
     if not member:
         raise HTTPException(404, "User not found")
 
-    if member["role"] == "admin":
+    if member["role"] == Role.admin:
         raise HTTPException(403, "Admin cannot delete another admin")
 
     result = db.members.find_one_and_delete({'id': member["id"]})

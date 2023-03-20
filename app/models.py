@@ -1,8 +1,18 @@
-from typing import Optional, List
-from pydantic import BaseModel, EmailStr, UUID4
+from enum import Enum
+from typing import Literal, Optional, List
+from pydantic import BaseModel, EmailStr, UUID4, create_model, validator
 from datetime import datetime
 
 from pydantic.fields import Field
+
+class Status(str, Enum):
+    active = "active"
+    inactive = "inactive"
+
+class Role(str, Enum):
+    admin = "admin"
+    member = "member"
+    unconfirmed = "unconfirmed"
 
 
 class MailPayload(BaseModel):
@@ -27,7 +37,7 @@ class AccessTokenPayload(BaseModel):
     exp: int
     iat: int
     user_id: str
-    role: str
+    role: Role
     access_token: bool
 
 
@@ -46,11 +56,10 @@ class MemberInput(BaseModel):
     graduated: bool
     phone: Optional[str]
 
-
 class AdminMemberUpdate(BaseModel):
     realName: Optional[str]
-    role: Optional[str]
-    status: Optional[str]
+    role: Optional[Role]
+    status: Optional[Status]
     email: Optional[EmailStr]
     classof: Optional[str]
     phone: Optional[str]
@@ -62,7 +71,6 @@ class MemberUpdate(BaseModel):
     classof: Optional[str]
     phone: Optional[str]
 
-
 class MemberDB(BaseModel):
     id: UUID4
     realName: str
@@ -71,10 +79,25 @@ class MemberDB(BaseModel):
     classof: str
     graduated: bool
     phone: Optional[str]
-    role: str
-    status: str
+    role: Role
+    status: Status
     # penalty for late cancellation 0-no penalty 1-warning and 2-lower priority
     penalty: int
+
+    # sets role to unconfirmed if role is something else than the predefined roles
+    # pre=true makes this validation erun before pydantic's model validator
+    @validator('role', pre=True)
+    def role_validator(cls, v):
+        if v not in Role.__members__:
+            return Role.unconfirmed
+        return v
+
+    # sets role to inactive if status is something else than the predefined status
+    @validator('status', pre=True)
+    def status_validator(cls, v):
+        if v not in Status.__members__:
+            return Status.inactive
+        return v
 
 
 class Member(BaseModel):
@@ -84,8 +107,8 @@ class Member(BaseModel):
     classof: str
     graduated: bool
     phone: Optional[str]
-    role: str
-    status: str
+    role: Role
+    status: Status
 
 
 class Participant(BaseModel):
