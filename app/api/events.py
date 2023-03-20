@@ -58,7 +58,7 @@ def get_all_event_ids(request: Request, token: AccessTokenPayload = Depends(opti
     '''
     db = get_database(request)
     search_filter = {"public": {"$eq": True}}
-    if token and token.role == "admin":
+    if token and token.role == Role.admin:
         search_filter = {}
     return [str(event['eid']) for event in db.events.find(search_filter)]
 
@@ -78,9 +78,10 @@ def get_upcoming_events(request: Request, token: AccessTokenPayload = Depends(op
     except ValueError:
         raise HTTPException(500, "Problem handling date format")
     # search filter for non admin users
-    search_filter = {"$and": [{'date': {'$gt': date}}, {"public": {"$eq": True}}]}
-    if token and token.role == "admin":
-        search_filter={'date': {"$gt": date}}
+    search_filter = {
+        "$and": [{'date': {'$gt': date}}, {"public": {"$eq": True}}]}
+    if token and token.role == Role.admin:
+        search_filter = {'date': {"$gt": date}}
 
     upcoming_events = db.events.find(search_filter)
 
@@ -88,6 +89,8 @@ def get_upcoming_events(request: Request, token: AccessTokenPayload = Depends(op
 
 # custom uuid validation as eid: UUID will not allow users to copy eids into swagger as they are not formatted correctly
 # id is used over eid as parameter name as validate_uuid and the api function needs the have the same parameter name.
+
+
 @router.get('/{id}/image', dependencies=[Depends(validate_uuid)])
 def get_event_picture(request: Request, id: str):
     image_path = get_image_path(request)
@@ -120,7 +123,7 @@ def update_event(request: Request, id: str, eventUpdate: EventUpdate, AccessToke
     """ To unset an optional field set the value to null """
     db = get_database(request)
     event = get_event_or_404(db, id)
-    
+
     # exclude_unset allows null to be included allowing for optional fields to be updated to be null i.e not present
     values = eventUpdate.dict(exclude_unset=True)
     if len(values) == 0:
@@ -140,7 +143,8 @@ def update_event(request: Request, id: str, eventUpdate: EventUpdate, AccessToke
     try:
         EventDB.parse_obj({**event, **values})
     except ValidationError:
-        raise HTTPException(400, "Cannot remove field as this is required filed for all events")
+        raise HTTPException(
+            400, "Cannot remove field as this is required filed for all events")
 
     result = db.events.find_one_and_update(
         {'eid': UUID(id)},
@@ -151,13 +155,14 @@ def update_event(request: Request, id: str, eventUpdate: EventUpdate, AccessToke
 
     return Response(status_code=200)
 
+
 @router.delete('/{id}', dependencies=[Depends(validate_uuid)])
 def delete_event_by_id(request: Request, id: str, AccessTokenPayload=Depends(authorize_admin)):
     db = get_database(request)
     event = get_event_or_404(db, id)
 
     res = db.events.find_one_and_delete({'eid': event["eid"]})
-    
+
     if not res:
         raise HTTPException(500, "Unexpected error when deleting event")
 
@@ -172,11 +177,12 @@ def get_event_by_id(request: Request, id: str, token: AccessTokenPayload = Depen
 
     if token:
         role = token.role
-    if event["public"] == False and role != "admin":
+    if event["public"] == False and role != Role.admin:
         # only allow admin members acces to unpublished events
-        raise HTTPException(403, "Insufficient privileges to access this resource")
+        raise HTTPException(
+            403, "Insufficient privileges to access this resource")
 
-    if role == "admin":
+    if role == Role.admin:
         return EventDB.parse_obj(event)
 
     return EventUserView.parse_obj(event)
@@ -186,12 +192,14 @@ def get_event_by_id(request: Request, id: str, token: AccessTokenPayload = Depen
 def get_event_participants(request: Request, id: str, token: AccessTokenPayload = Depends(authorize)):
     db = get_database(request)
     event = get_event_or_404(db, id)
-    if token.role == "admin":
+
+    if token.role == Role.admin:
         return [Participant.parse_obj(p) for p in event['participants']]
-    
+
     if event["maxParticipants"] != None:
         # only return the list when events are open i.e no cap
-        raise HTTPException(401, "regular user cannot get participant list for limited events")
+        raise HTTPException(
+            401, "regular user cannot get participant list for limited events")
 
     return [{'id': p['id'], 'name': p['realName']} for p in event['participants']]
 
@@ -205,8 +213,11 @@ def join_event(request: Request, id: str, payload: JoinEventPayload, token: Acce
     if not member:
         raise HTTPException(400, "User could not be found")
 
+    if event_has_started(event):
+        raise HTTPException(400, "Cannot join event after it started")
+
     # admin can join all events
-    if member["role"] != "admin":
+    if member["role"] != Role.admin:
         if not valid_registration(event["registrationOpeningDate"]):
             raise HTTPException(403, "Event registration is not open")
 
@@ -307,7 +318,7 @@ def remove_participant(request: Request, id: str, uid: str, token: AccessTokenPa
     member = db.members.find_one({'id': UUID(uid)})
 
     if not member:
-        raise HTTPException(400, "User could not be found")
+        raise HTTPException(404, "User could not be found")
 
     participant = db.events.find_one({"eid": event["eid"]}, {"participants": {
         "$elemMatch": {"id": member["id"]}}})
@@ -324,6 +335,86 @@ def remove_participant(request: Request, id: str, uid: str, token: AccessTokenPa
                          "$pull": {"participants": {"id": member["id"]}}})
 
     return Response(status_code=200)
+
+@router.post('/{id}/confirm', dependencies=[Depends(validate_uuid)])
+async def confirmation(request: Request, id: str, token: AccessTokenPayload = Depends(authorize_admin)):
+    async with lock:
+        db = get_database(request)
+        event = get_event_or_404(db, id)
+        num_confs = num_of_confirmed_participants(event["participants"])
+
+        if event["bindingRegistration"] == False:
+            raise HTTPException(400, "Events without bindingRegistration should not send out confirmations")
+
+        if event_has_started(event):
+            raise HTTPException(400, "Cannot send confirmation after event start")
+
+        if event["public"] == False:
+            raise HTTPException(400, "Cannot send confirmation to a unpublished event")
+
+        # if users cannot join confirmations cannot be sent out
+        if not valid_registration(event["registrationOpeningDate"]):
+            raise HTTPException(400, "Cannot send confirmations before registration is opened")
+
+        result = db.events.find_one_and_update(
+            {'eid': UUID(id)},
+            {"$set": {"confirmed": True}})
+
+        if not result:
+            raise HTTPException(500, "Unexpected error when updating event")
+
+        # all users joined gets confirmed if maxParticipants is not set
+        # maxIdx-> which array position is 
+        maxIdx = len(event["participants"])
+        if event["maxParticipants"] != None:
+            maxIdx = event["maxParticipants"]
+
+        confirmationPositions = maxIdx - num_confs
+        if confirmationPositions == 0:
+            raise HTTPException(400, "All participants have received confirmation ")
+        # Aggregate all participants emails to send confirmation email
+        # doesn't needs to filter out penalty < 2 as these should be at the bottom of the list
+        # includeArrayIndex preserves the original position making sure the aggregation always gets returned in correct order
+        # meaning $limit excludes penalized participants
+        pipeline = [
+            {"$match": {"eid": event["eid"]}},
+            {"$unwind": {"path": "$participants", "includeArrayIndex": "arrayIndex"}},
+            {"$match": {"participants.confirmed": {"$ne": True}}},
+            {"$sort": {"arrayIndex": 1}},
+            {"$limit": confirmationPositions},
+            {"$group": {"_id": "$participants.email"}},
+        ]
+        confirmedParticipants = db.events.aggregate(pipeline)
+
+        mailingList = [p['_id'] for p in confirmedParticipants]
+        # tags participants with confirmed 
+        result = db.events.update_many(
+                {"eid": event["eid"]}, 
+                {"$set": {"participants.$[element].confirmed": True}}, 
+                array_filters=[{"element.email": {"$in": mailingList}}],
+            )
+        if not result:
+            raise HTTPException(500, "Unexpected error when updating participants")
+
+        # Send email to all participants
+        if request.app.config.ENV == 'production':
+            with open("./app/assets/mails/event_confirmation.txt", 'r') as mail_content:
+                content = mail_content.read().replace(
+                    "$EVENT_NAME$", event['title'])
+                content = content.replace(
+                    "$DATE$", event['date'].strftime("%d %B, %Y"))
+                content = content.replace("$TIME$", event['date'].strftime("%H:%M:%S"))
+                content = content.replace("$LOCATION$", event['address'])
+                # send mail individual
+                for mail in mailingList:
+                    confirmation_email = MailPayload(
+                        to=[mail],
+                        subject=f"Bekreftelse {event['title']}",
+                        content=content,
+                    )
+                    send_mail(confirmation_email)
+
+        return Response(status_code=200)
 
 
 @router.get('/{id}/export', dependencies=[Depends(validate_uuid)])
