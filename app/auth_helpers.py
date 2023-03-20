@@ -8,7 +8,7 @@ from google.oauth2 import service_account
 
 
 from .config import Config
-from .models import MemberDB, RefreshTokenPayload, AccessTokenPayload
+from .models import MemberDB, RefreshTokenPayload, AccessTokenPayload, Role
 
 security_scheme = HTTPBearer()
 optional_security = HTTPBearer(auto_error=False)
@@ -29,7 +29,7 @@ def get_google_credentials(impersonate_email: str):
 def authorize_admin(request: Request, token: HTTPAuthorizationCredentials = Depends(security_scheme)):
     payload = authorize(request, token)
     
-    if payload.role != "admin":
+    if payload.role != Role.admin:
         raise HTTPException(403, 'Insufficient privileges to access this resource')
     return payload
 
@@ -56,7 +56,7 @@ def optional_authentication(request: Request, token: HTTPAuthorizationCredential
         return authorize(request, token)
     return None
 
-def role_required(accessToken: AccessTokenPayload, role: str):
+def role_required(accessToken: AccessTokenPayload, role: Role):
     if accessToken.role != role:
         raise HTTPException(403, 'No privileges to access this resource')
 
