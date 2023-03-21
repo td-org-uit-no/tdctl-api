@@ -76,9 +76,13 @@ def role_required(accessToken: AccessTokenPayload, role: Role):
         raise HTTPException(403, 'No privileges to access this resource')
 
 def set_auth_cookies(response: Response, access_token: str, refresh_token: str):
+    # Set cookie to expire in one year. Note that the token may still be invalid
+    # even if the cookie is not expired, so this doesn't mean that the token
+    # can't be revoked
+    expiration = 31536000
     secure = os.environ.get("API_ENV") == "production"
-    response.set_cookie('access_token', access_token, httponly = True, path = "/", secure=secure)
-    response.set_cookie('refresh_token', refresh_token, httponly = True, path = "/", secure=secure)
+    response.set_cookie('access_token', access_token, httponly = True, path = "/", secure=secure, expires=expiration)
+    response.set_cookie('refresh_token', refresh_token, httponly = True, path = "/", secure=secure, expires=expiration)
 
 def delete_auth_cookies(response: Response):
     response.delete_cookie('access_token')
