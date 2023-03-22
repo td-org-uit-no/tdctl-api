@@ -494,7 +494,6 @@ async def exportEvent(background_tasks: BackgroundTasks, request: Request, id: s
 
     participants = [Participant(
         **p).copy(exclude={'id'}).dict() for p in event['participants']]
-    participants = sorted(participants, key=lambda p: p['submitDate'])
 
     event_details = [{'Title': event['title'], 'date':event['date'], 'address':event['address'], 'price':event['price'],
                       'maxParticipants':event['maxParticipants'], 'duration':event['duration'], 'transportation':str(event['transportation']), 'food':str(event['food'])}]
