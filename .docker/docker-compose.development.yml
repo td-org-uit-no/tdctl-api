@@ -13,6 +13,7 @@ services:
       DB_PORT: 26900
       TEST_DB_HOSTNAME: test_mongodb
       FRONTEND_URL: localhost:3000
+      TZ: Europe/Oslo
     links:
       - mongodb
     depends_on:
