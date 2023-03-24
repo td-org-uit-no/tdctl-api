@@ -89,6 +89,36 @@ def get_upcoming_events(request: Request, token: AccessTokenPayload = Depends(op
 
     return [Event.parse_obj(event) for event in upcoming_events]
 
+@router.get('/joined-events')
+def get_joined_events(request: Request, token: AccessTokenPayload = Depends(authorize)):
+    """ Returns all (upcoming) events user has joined """
+    db = get_database(request)
+    member = db.members.find_one({'id': UUID(token.user_id)})
+    if not member:
+        raise HTTPException(404, "User could not be found")
+
+    now = datetime.now()
+
+    try:
+        date_str = now.strftime("%Y-%m-%d %H:%M:%S")
+        date = datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S")
+    except ValueError:
+        raise HTTPException(500, "Problem handling date format")
+    
+
+    search_filter = {'date': {"$gt": date}}
+
+    # Events to be returned
+    pipeline = [
+        {"$match": search_filter},
+        {"$unwind": "$participants"},
+        {"$match": {"participants.id": {"$eq": member["id"]}}}
+    ]
+    res = db.events.aggregate(pipeline)
+
+    return [EventUserView.parse_obj(e) for e in res]
+
+
 # custom uuid validation as eid: UUID will not allow users to copy eids into swagger as they are not formatted correctly
 # id is used over eid as parameter name as validate_uuid and the api function needs the have the same parameter name.
 
