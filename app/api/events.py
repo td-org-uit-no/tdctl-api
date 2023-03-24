@@ -427,6 +427,39 @@ def is_joined_event(request: Request, id: str, token: AccessTokenPayload = Depen
         return {'joined': True}
     except KeyError:
         return {'joined': False}
+    
+
+@router.get('/{id}/confirmed', dependencies=[Depends(validate_uuid)])
+def is_confirmed(request: Request, id: str, token: AccessTokenPayload = Depends(authorize)):
+    """ Returns whether user is confirmed to event """
+    db = get_database(request)
+    event = get_event_or_404(db, id)
+
+    # Get event (if user is joined)
+    user_event = db.events.find_one({"eid": event['eid']}, {'participants': {
+        '$elemMatch': {'id': UUID(token.user_id)}}})
+    
+    # Check whether user exists in event
+    if not user_event:
+        raise HTTPException(400, "User not joined event!")
+
+    try:
+        user_event['participants']
+    except KeyError:
+        raise HTTPException(400, "User not joined event!")
+    
+    userData = user_event['participants'][0]
+    # Check whether event has been confirmed
+    try:
+        event['confirmed']
+    except KeyError:
+        raise HTTPException(400, 'Event does not have confirmation')
+    
+    if event['confirmed'] == False:
+        raise HTTPException(400, 'Event has not been confirmed yet')
+    
+    # Return user data
+    return {'confirmed' : userData['confirmed']}
 
 
 @router.delete('/{id}/removeParticipant/{uid}', dependencies=[Depends(validate_uuid)])
