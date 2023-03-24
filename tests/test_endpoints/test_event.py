@@ -122,6 +122,34 @@ def test_get_upcoming_events(client):
     assert len(response.json()) == 1
 
 
+@authentication_required("/api/event/joined-events", "get")
+def test_get_joined_events(client):
+    # Login
+    client_login(client, admin_member["email"], admin_member["password"])
+
+    # Seeded events are past, should return none
+    response = client.get("/api/event/joined-events/")
+    assert response.status_code == 200
+    assert len(response.json()) == 0
+
+    # Make copy to avoid affecting other tests
+    event = new_event.copy()
+    event["public"] = False
+
+    # Create upcoming, unpublished event
+    response = client.post("/api/event/", json=new_event)
+    assert response.status_code == 200
+    test_event_id = response.json()["eid"]
+
+    # Join
+    response = client.post(f'/api/event/{test_event_id}/join', json=joinEventPayload)
+    assert response.status_code == 200
+
+    # Now returns one event
+    response = client.get("/api/joined-events/")
+    assert len(response.json()) == 1
+
+
 def test_get_event_picture(client):
     eid = test_events[0]["eid"]
 
