@@ -247,6 +247,72 @@ def test_get_event_participants(client):
     assert 'food' in res_json[0]
 
 
+@authentication_required("/api/event/{uuid}/options", "get")
+def test_get_event_options(client):
+    # Login
+    access_token = client_login(
+        client, admin_member["email"], admin_member["password"])
+    headers = {"Authorization": f"Bearer {access_token}"}
+
+    # Add event to insert options
+    response = client.post("/api/event/", json=new_event, headers=headers)
+    eid = response.json()["eid"]
+    assert response.status_code == 200
+
+    # Join with options
+    response = client.post(f'/api/event/{eid}/join', json=joinEventPayload, headers=headers)
+    assert response.status_code == 200
+
+    # Fetch event options
+    response = client.get(f'/api/event/{eid}/options')
+    assert response.status_code == 200
+    assert response.json()['transportation'] == joinEventPayload['transportation']
+    assert response.json()['food'] == joinEventPayload['food']
+    assert response.json()['dietaryRestrictions'] == joinEventPayload['dietaryRestrictions']
+
+
+@authentication_required("/api/event/{uuid}/options", "get")
+def test_update_event_options(client):
+    # Login
+    access_token = client_login(
+        client, admin_member["email"], admin_member["password"])
+    headers = {"Authorization": f"Bearer {access_token}"}
+
+    # Create event to insert options
+    response = client.post("/api/event/", json=new_event, headers=headers)
+    eid = response.json()["eid"]
+    assert response.status_code == 200
+
+    # Join with options
+    response = client.post(f'/api/event/{eid}/join', json=joinEventPayload, headers=headers)
+    assert response.status_code == 200
+
+    # Update options
+    updateEventPayload = {
+        "transportation": True,
+        "food": False,
+        "dietaryRestrictions": ""
+    }
+    response = client.put(f'/api/event/{eid}/update-options', json=updateEventPayload)
+    assert response.status_code == 200
+
+    # Fetch updated event options
+    response = client.get(f'/api/event/{eid}/options')
+    assert response.status_code == 200
+    assert response.json()['transportation'] == updateEventPayload['transportation']
+    assert response.json()['food'] == updateEventPayload['food']
+    assert response.json()['dietaryRestrictions'] == updateEventPayload['dietaryRestrictions']
+
+    # Set event to confirmed
+    response = client.post(f'/api/event/{eid}/confirm')
+    assert response.status_code == 200
+
+    # Should fail to update options
+    response = client.put(f'/api/event/{eid}/update-options', json=updateEventPayload)
+    assert response.status_code == 400
+
+
+
 @authentication_required("/api/event/{uuid}/join", "post")
 def test_join_unpublished_event(client):
     # make copy so other test doesn't get affected
