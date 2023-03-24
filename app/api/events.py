@@ -236,6 +236,76 @@ def get_event_participants(request: Request, id: str, token: AccessTokenPayload 
     return [{'id': p['id'], 'name': p['realName']} for p in event['participants']]
 
 
+@router.get('/{id}/options', dependencies=[Depends(validate_uuid)])
+def get_event_options(request: Request, id: str, token: AccessTokenPayload = Depends(authorize)):
+    """ Get event options for requesting user """
+    db = get_database(request)
+    event = get_event_or_404(db, id)
+
+    # Get event (if user is joined)
+    user_event = db.events.find_one({"eid": event["eid"]}, {"participants": {
+        "$elemMatch": {"id": UUID(token.user_id)}}})
+    
+    # Check whether user exists in event
+    if not user_event:
+        raise HTTPException(400, "User not joined event!")
+
+    try:
+        user_event['participants']
+    except KeyError:
+        raise HTTPException(400, "User not joined event!")
+
+    # Get user data and return
+    userData = user_event['participants'][0]
+    return {'food': userData['food'], 'transportation': userData['transportation'],
+            'dietaryRestrictions': userData['dietaryRestrictions']}
+
+
+@router.put('/{id}/update-options', dependencies=[Depends(validate_uuid)])
+def update_event_options(request: Request, id: str, payload: JoinEventPayload, token: AccessTokenPayload = Depends(authorize)):
+    """ Update options for given event """
+    db = get_database(request)
+    event = get_event_or_404(db, id)
+    member = db.members.find_one({'id': UUID(token.user_id)})
+
+    # Get event (if user is joined)
+    user_event = db.events.find_one({"eid": event["eid"]}, {"participants": {
+        "$elemMatch": {"id": UUID(token.user_id)}}})
+    
+    # Check whether user exists in event
+    if not user_event:
+        raise HTTPException(400, "User not joined event!")
+
+    try:
+        user_event['participants']
+    except KeyError:
+        raise HTTPException(400, "User not joined event!")
+    
+    # Can validate whether payload entries are
+    # actually applicable for event here
+
+    # Cannot update options for confirmed event
+    try:
+        event['confirmed']
+    except KeyError:
+        raise HTTPException(400, "Cannot update options for confirmed event")
+
+    if event['confirmed']:
+        raise HTTPException(400, "Cannot update options for confirmed event")
+
+    # Create a dictionary with the payload
+    values = payload.dict(exclude_unset=True)
+    update_dict = {f"participants.$.{key}": value for key, value in values.items()}
+    
+    # Update db field
+    res = db.events.update_one({"eid": event["eid"], "participants.id": member["id"]}, {"$set": update_dict})
+
+    # Return error if user was not in event
+    if not res:
+        raise HTTPException(400, "User not joined event!")
+    
+
+
 @router.post('/{id}/join', dependencies=[Depends(validate_uuid)])
 def join_event(request: Request, id: str, payload: JoinEventPayload, token: AccessTokenPayload = Depends(authorize)):
     db = get_database(request)
