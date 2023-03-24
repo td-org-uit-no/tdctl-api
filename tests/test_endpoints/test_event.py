@@ -362,12 +362,10 @@ def test_join_unpublished_event(client):
 
 @authentication_required("/api/event/{uuid}/join", "post")
 def test_join_published_event(client):
-    # make copy so other test doesn't get affected
-    event = new_event.copy()
     client_login(client, admin_member["email"], admin_member["password"])
 
     # creates event with maxParticipants = 1
-    response = client.post("/api/event/", json=event)
+    response = client.post("/api/event/", json=new_event)
     new_event_eid = response.json()["eid"]
     assert response.status_code == 200
 
