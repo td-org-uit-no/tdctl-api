@@ -525,6 +525,39 @@ def test_is_joined_event(client):
     assert res["joined"] == True
 
 
+@authentication_required("/api/event/{uuid}/joined", "get")
+def test_is_confirmed(client):
+    # Login
+    access_token = client_login(
+        client, admin_member["email"], admin_member["password"])
+    headers = {"Authorization": f"Bearer {access_token}"}
+
+    # Create new event to confirm
+    response = client.post("/api/event/", json=new_event, headers=headers)
+    eid = response.json()["eid"]
+    assert response.status_code == 200
+
+    # Should not be confirmed
+    response = client.get(f'/api/event/{eid}/confirmed')
+    assert response.status_code == 400
+
+    # Join
+    response = client.post(f'/api/event/{eid}/join', json=joinEventPayload, headers=headers)
+    assert response.status_code == 200
+
+    # Should not be confirmed
+    response = client.get(f'/api/event/{eid}/confirmed')
+    assert response.status_code == 400
+
+    # Set event to confirmed
+    response = client.post(f'/api/event/{eid}/confirm')
+    assert response.status_code == 200
+
+    # Should be confirmed
+    response = client.get(f'/api/event/{eid}/confirmed')
+    assert response.status_code == 200
+
+
 @admin_required("/api/event/{uuid}/removeParticipant/{uuid}", "delete")
 def test_remove_participant(client):
     eid = test_events[0]["eid"]
