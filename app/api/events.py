@@ -247,12 +247,7 @@ def get_event_options(request: Request, id: str, token: AccessTokenPayload = Dep
         "$elemMatch": {"id": UUID(token.user_id)}}})
     
     # Check whether user exists in event
-    if not user_event:
-        raise HTTPException(400, "User not joined event!")
-
-    try:
-        user_event['participants']
-    except KeyError:
+    if not user_event or 'participants' not in user_event:
         raise HTTPException(400, "User not joined event!")
 
     # Get user data and return
@@ -273,24 +268,14 @@ def update_event_options(request: Request, id: str, payload: JoinEventPayload, t
         "$elemMatch": {"id": UUID(token.user_id)}}})
     
     # Check whether user exists in event
-    if not user_event:
-        raise HTTPException(400, "User not joined event!")
-
-    try:
-        user_event['participants']
-    except KeyError:
+    if not user_event or 'participants' not in user_event:
         raise HTTPException(400, "User not joined event!")
     
     # Can validate whether payload entries are
     # actually applicable for event here
 
-    # Cannot update options for confirmed event
-    try:
-        event['confirmed']
-    except KeyError:
-        raise HTTPException(400, "Cannot update options for confirmed event")
-
-    if event['confirmed']:
+    # Cannot update options for confirmed event   
+    if event.get('confirmed'):
         raise HTTPException(400, "Cannot update options for confirmed event")
 
     # Create a dictionary with the payload
@@ -302,7 +287,7 @@ def update_event_options(request: Request, id: str, payload: JoinEventPayload, t
 
     # Return error if user was not in event
     if not res:
-        raise HTTPException(400, "User not joined event!")
+        raise HTTPException(500, "Could not find user in event")
     
 
 
@@ -440,22 +425,12 @@ def is_confirmed(request: Request, id: str, token: AccessTokenPayload = Depends(
         '$elemMatch': {'id': UUID(token.user_id)}}})
     
     # Check whether user exists in event
-    if not user_event:
-        raise HTTPException(400, "User not joined event!")
-
-    try:
-        user_event['participants']
-    except KeyError:
+    if not user_event or 'participants' not in user_event:
         raise HTTPException(400, "User not joined event!")
     
     userData = user_event['participants'][0]
     # Check whether event has been confirmed
-    try:
-        event['confirmed']
-    except KeyError:
-        raise HTTPException(400, 'Event does not have confirmation')
-    
-    if event['confirmed'] == False:
+    if not event.get('confirmed'):
         raise HTTPException(400, 'Event has not been confirmed yet')
     
     # Return user data
