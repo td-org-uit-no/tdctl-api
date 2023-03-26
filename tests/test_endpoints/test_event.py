@@ -250,17 +250,15 @@ def test_get_event_participants(client):
 @authentication_required("/api/event/{uuid}/options", "get")
 def test_get_event_options(client):
     # Login
-    access_token = client_login(
-        client, admin_member["email"], admin_member["password"])
-    headers = {"Authorization": f"Bearer {access_token}"}
+    client_login(client, admin_member["email"], admin_member["password"])
 
     # Add event to insert options
-    response = client.post("/api/event/", json=new_event, headers=headers)
+    response = client.post("/api/event/", json=new_event)
     eid = response.json()["eid"]
     assert response.status_code == 200
 
     # Join with options
-    response = client.post(f'/api/event/{eid}/join', json=joinEventPayload, headers=headers)
+    response = client.post(f'/api/event/{eid}/join', json=joinEventPayload)
     assert response.status_code == 200
 
     # Fetch event options
@@ -274,17 +272,15 @@ def test_get_event_options(client):
 @authentication_required("/api/event/{uuid}/options", "get")
 def test_update_event_options(client):
     # Login
-    access_token = client_login(
-        client, admin_member["email"], admin_member["password"])
-    headers = {"Authorization": f"Bearer {access_token}"}
+    client_login(client, admin_member["email"], admin_member["password"])
 
     # Create event to insert options
-    response = client.post("/api/event/", json=new_event, headers=headers)
+    response = client.post("/api/event/", json=new_event)
     eid = response.json()["eid"]
     assert response.status_code == 200
 
     # Join with options
-    response = client.post(f'/api/event/{eid}/join', json=joinEventPayload, headers=headers)
+    response = client.post(f'/api/event/{eid}/join', json=joinEventPayload)
     assert response.status_code == 200
 
     # Update options
@@ -526,12 +522,10 @@ def test_is_joined_event(client):
 @authentication_required("/api/event/{uuid}/joined", "get")
 def test_is_confirmed(client):
     # Login
-    access_token = client_login(
-        client, admin_member["email"], admin_member["password"])
-    headers = {"Authorization": f"Bearer {access_token}"}
+    client_login(client, admin_member["email"], admin_member["password"])
 
     # Create new event to confirm
-    response = client.post("/api/event/", json=new_event, headers=headers)
+    response = client.post("/api/event/", json=new_event)
     eid = response.json()["eid"]
     assert response.status_code == 200
 
@@ -540,7 +534,7 @@ def test_is_confirmed(client):
     assert response.status_code == 400
 
     # Join
-    response = client.post(f'/api/event/{eid}/join', json=joinEventPayload, headers=headers)
+    response = client.post(f'/api/event/{eid}/join', json=joinEventPayload)
     assert response.status_code == 200
 
     # Should not be confirmed
