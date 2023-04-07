@@ -71,7 +71,6 @@ def setup_test_env(args):
     api_container = check_api_running(client)
     mongodb_container = start_mongodb_container(client)
     # run pytest without description warnings
-    # print(f'pytest {" ".join(args)}')
     _, stream = api_container.exec_run(f'pytest {" ".join(args)}', stream=True)
     for data in stream:
         print(data.decode(), end='')

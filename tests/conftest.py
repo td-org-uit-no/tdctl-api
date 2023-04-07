@@ -3,7 +3,7 @@ import os
 from app import config
 from pymongo import MongoClient
 from fastapi.testclient import TestClient
-from seeding import seed_events, seed_members
+from utils.seeding import seed_events, seed_members
 
 import sys
 import os
