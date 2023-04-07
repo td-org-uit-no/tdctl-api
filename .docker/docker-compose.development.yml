@@ -1,4 +1,5 @@
 version: "3.5"
+name: backend
 services:
   tdctl_api:
     image: tdctl_api:latest
@@ -25,6 +26,7 @@ services:
 
   mongodb:
     hostname: td_mongodb
+    container_name: mongodb_dev
     image: mongo:latest
     command: mongod --port 26900
     restart: unless-stopped
