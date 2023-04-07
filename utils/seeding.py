@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from uuid import UUID, uuid4
+from uuid import uuid4
 from pymongo import MongoClient
 from werkzeug.security import generate_password_hash
 from app import config
