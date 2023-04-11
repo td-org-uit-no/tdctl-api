@@ -5,7 +5,7 @@
 
 Welcome to the TD API project! This open-source project provides a flexible and easy-to-use interface for accessing and managing data related to TD. With this API, you can access a variety of information, including events, news, resources, and more. We believe in the power of open-source software and welcome contributions from developers of all skill levels. Join us in building a better future for TD!
 
-This is the repositroy for the backend of our website, if you want contribute to our frontend instead please look at this [repository](https://github.com/td-org-uit-no/tdctl-frontend) in stead.
+This is the repository for the backend of our website. So if you want to contribute to our frontend, please look at this [repository](https://github.com/td-org-uit-no/tdctl-frontend) instead.
 
 
 
@@ -13,9 +13,7 @@ This is the repositroy for the backend of our website, if you want contribute to
 
 We have chosen a tech stack that should make it easy for new students to quickly learn the ropes and start contributing.
 
-**Client:** Docker, React
-
-**Server:** Docker, Python, Fast API, MongoDB
+**API:** Docker, Python, Fast API, MongoDB
 
 
 ## Run Locally
@@ -105,9 +103,6 @@ Feel free to add issues to our [issue tracker](https://github.com/td-org-uit-no/
 Contributions are always welcome!
 
 See [`contributing.md`](./CONTRIBUTING.md) for ways to get started.
-
-Please adhere to this project's [`code of conduct`](./CODEOFCONDUCT.md).
-
 
 ## Support
 
