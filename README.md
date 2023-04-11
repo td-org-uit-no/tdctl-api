@@ -1,49 +1,115 @@
 
-# tdctl-api
-> Application Programming Interface for TDCTL
+![Logo](https://raw.githubusercontent.com/td-org-uit-no/graphics/9fa70bc36f3d47e23f0961fe9dd5f1d0675db5a2/logo/logo-with-tagline/td-dark-tagline.svg)
+
+# Website API
+
+Welcome to the TD API project! This open-source project provides a flexible and easy-to-use interface for accessing and managing data related to TD. With this API, you can access a variety of information, including events, news, resources, and more. We believe in the power of open-source software and welcome contributions from developers of all skill levels. Join us in building a better future for TD!
+
+This is the repositroy for the backend of our website, if you want contribute to our frontend instead please look at this [repository](https://github.com/td-org-uit-no/tdctl-frontend) in stead.
 
 
+
+## Tech Stack
+
+We have chosen a tech stack that should make it easy for new students to quickly learn the ropes and start contributing.
+
+**Client:** Docker, React
+
+**Server:** Docker, Python, Fast API, MongoDB
+
+
+## Run Locally
+> We prefer a containerized development. Therefore, the only dependeciy needed to work on this project is [docker/ docker-compose](https://docs.docker.com/get-docker/). To make this easier for new developers we have created a script that can be  used to run the api in a container locally, this script is placed in the project root and is called ```dev_utils.sh```.
+
+1. Clone the project
+
+```bash
+    git clone git@github.com:td-org-uit-no/tdctl-api.git
+```
+2. Go to the project directory
+
+```bash
+    cd tdctl-api
+```
+
+3. Add executable rights to the container util script
+```bash
+    chmod +x ./dev_utils
+```
+
+4. Build docker container
+> This is only needed if it is the first time you running the server or if there has been any changes to the runtime environment of the server. 
+```bash
+    ./dev_utils compose build
+```
+
+5. Launch the container
+    * Run container in background
+        > Shutdown the container by running ```./dev_utils compose down```
+        ```bash
+            ./dev_utils compose up -d
+        ```
+        - You can now start a interactive shell within the container by running the command
+            > To get an interactive shell in the database container add ```db``` to the end of this command
+            ```bash
+                ./dev_utils exec
+            ```
+    * Run the container and view container output
+        > Shutdown the container by pressing ```ctrl-C```
+        ```bash
+            ./dev_utils compose up
+        ```
+6. **Optional:** Seed the database with test users:
+    > This will provide you with a dummy admin user which has the credentials *Username* : ```Admin``` *Password* : ```Admin!234```
+    ```bash
+        ./dev_utils seed
+    ```
+
+When the container is up and running you should be to view the api at [localhost:5000](http://localhost:5000)
+    
+        
+## Running Tests
+
+To run tests make sure the container is running, then run the following command
+
+```bash
+  ./dev_utils test
+```
+
+You should now se an output similar to this:
+```
+Starting mongodb_test
+============================= test session starts ==============================
+platform linux -- Python 3.9.16, pytest-7.3.0, pluggy-1.0.0
+rootdir: /app
+plugins: anyio-3.6.2
+collected 46 items
+
+tests/test_decorator.py ...                                              [  6%]
+tests/test_endpoints/test_admin.py .....                                 [ 17%]
+tests/test_endpoints/test_auth.py ...                                    [ 23%]
+tests/test_endpoints/test_event.py .....................                 [ 69%]
+tests/test_endpoints/test_jobs.py ....                                   [ 78%]
+tests/test_endpoints/test_mail.py .                                      [ 80%]
+tests/test_endpoints/test_members.py .......                             [ 95%]
+tests/test_validation/test_file_validation.py .                          [ 97%]
+tests/test_validation/test_password_validation.py .                      [100%]
+
+============================= 46 passed in 25.71s ==============================
+```
+## Missing Features?
+
+Feel free to add issues to our [issue tracker](https://github.com/td-org-uit-no/tdctl-frontend/issues), or create your own  [pull request](#Contributing).
 ## Contributing
-### 1. Clone this repository by running:
-  * ```git clone https://github.com/td-org-uit-no/tdctl-api.git```
 
-### 2. Development environment
-You can either start up both the backend and mongodb locally, or you can run them in separate docker containers using docker-compose.
+Contributions are always welcome!
 
-**NB: Doing both may result in issues since docker and mongod will in some cases use different users for writing to the volume folder `db_data`. If this happen, you should either try to fix the permissions of the folder, or you can delete and recreate it**
+See [`contributing.md`](./CONTRIBUTING.md) for ways to get started.
 
-#### 2.1 Pipenv
-   * To run the API and install the required dependencies using pipenv:
-     1. [install pipenv](https://pipenv.pypa.io/en/latest/install/)
-     1. run `pipenv install` to install all dependencies into the pipenv virtuall enviroment
-     2. run `pipenv shell` to enter the virtuall enviroment with all dependencies installed
-  * To run the API locally use the `manage.py` script, which will run a local instance of the API:  ```./manage.py``` 
-  * To run mongodb locally you must be inside the db folder, and then run `mongod -f db.yml`. `db.yml` uses relative paths, and the relative paths are relative from where you run the command from and not from the file itself.
-  * The HTTP server should by default be run on [localhost:5000](http://localhost:5000/)
-  * Please note that datasources(or equivalent mockup code) used by the API must be available for all functionality to work.
+Please adhere to this project's [`code of conduct`](./CODEOFCONDUCT.md).
 
-#### 2.2 Docker
-  * To use docker, you can run: 
-    1. `docker-compose -f .docker/docker-compose.development.yml build`
-    2. `docker-compose -f .docker/docker-compose.development.yml up`
-    * This will launch both the backend and mongodb inside two separate containers.
-  * To see output from the backend while working, you can use `docker logs tdctl_api -f`
 
-## 3.Testing :heavy_check_mark:
-The test are running on a test client who resets after every test. To create data available over multiple tests insert the seeding in the client instance in `conftest.py`
-### 3.1 Running tests
-**:information_source: Make sure the mongodb server is running. To start the mongo server run `mongod -f db.yml` in the db folder**
-  * To run all tests: `pytest -rx`
-  * To run a specific test: `pytest -rx <path to test file>`
+## Support
 
-See [pytest documentation](https://docs.pytest.org/en/7.2.x/) for more information
-### 3.2 Running tests in docker
-**To perfore tests when using docker, run the `pytest_docker.py` file from your shell and the script will execute the tests in the running container.**
-
-The script will pass all flags into the container, so it can be used in the same way as pytest i.e <br> 
-`python3 pytest_docker.py -s` will be the same as running `pytest -s`
-
-  - **Requirements:**
-    - tdctl_api container must be running
-    - Docker SDK for python must be installed `pip install docker`
+For support, email nettside-ansvarlig@td-uit.no
 
