@@ -1,5 +1,7 @@
-
-![Logo](https://raw.githubusercontent.com/td-org-uit-no/graphics/9fa70bc36f3d47e23f0961fe9dd5f1d0675db5a2/logo/logo-with-tagline/td-dark-tagline.svg)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/td-org-uit-no/graphics/9fa70bc36f3d47e23f0961fe9dd5f1d0675db5a2/logo/logo-with-tagline/td-dark-tagline.svg">
+  <img width="100%" height="100%" alt="TD logo" src="https://github.com/td-org-uit-no/graphics/blob/master/logo/logo-with-tagline/td-light-tagline.svg" ali>
+</picture>
 
 # Website API
 
