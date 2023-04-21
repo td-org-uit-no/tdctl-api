@@ -15,6 +15,9 @@ def get_image_path(request: Request) -> str:
 def get_JobImage_path(request: Request) -> str:
     return request.app.jobImage_path
 
+def get_qr_path(request: Request) -> str:
+    return request.app.qr_path
+
 
 def get_export_path(request: Request) -> str:
     return request.app.export_path
@@ -27,6 +30,7 @@ def setup_db(app):
 
     # Expire reset password codes after 10 minutes
     app.db.passwordResets.create_index("createdAt", expireAfterSeconds=60 * 10)
+    app.qr_path = 'db/qr'
     if app.config.MONGO_DBNAME == 'test':
         app.image_path = 'db/testEventImages'
         return

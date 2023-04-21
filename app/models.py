@@ -124,6 +124,7 @@ class Participant(BaseModel):
     penalty: int
     # indicate if participant has recieved an confirmation mail
     confirmed: Optional[bool]
+    attended: Optional[bool]
 
 
 class ParticipantPosUpdate(BaseModel):
@@ -162,6 +163,8 @@ class Event(EventUserView):
     host: EmailStr
     # Collects all user penalties registered, ensuring only one penalty is given per event
     registeredPenalties: List[UUID4]
+    # Register id
+    register_id: Optional[UUID4]
 
 
 class EventUpdate(BaseModel):
@@ -215,6 +218,11 @@ class JoinEventPayload(BaseModel):
 class PenaltyInput(BaseModel):
     penalty: int = Field(
         ge=0, description="Penalty must be larger or equal to 0")
+    
+
+class SetAttendancePayload(BaseModel):
+    member_id: Optional[str]
+    attendance: bool
 
 
 class JobItemPayload(BaseModel):

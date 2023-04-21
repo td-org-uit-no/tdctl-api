@@ -650,6 +650,7 @@ def test_confirm_event(client):
     # checks that all participants gets confirmation when there are no limit
     assert event and num_of_confirmed_participants(event["participants"]) == len(event["participants"])
 
+
 @admin_required("/api/event/{uuid}/updateParticipantsOrder", "put")
 def test_event_reorder(client):
     eid = test_events[0]["eid"]
@@ -753,3 +754,212 @@ def test_event_reorder(client):
     response = client.put(
             f'/api/event/{eid}/updateParticipantsOrder', json={"updateList": new_order})
     assert response.status_code == 400
+
+
+@authentication_required('/api/event/{uuid}/register', 'put')
+def test_update_attendance(client):
+    eid = test_events[0]['eid']
+    
+    ## Self update
+    client_login(client, admin_member["email"], admin_member["password"])
+    payload = {
+        'attendance': True
+    }
+
+    # Should not register events without registration (and register id)
+    response = client.put(f'/api/event/{eid}/register', json=payload)
+    assert response.status_code == 404
+
+    # Create registration for event
+    response = client.post(f'/api/event/{eid}/qr')
+    assert response.status_code == 201
+
+    # Get registration id
+    event = db.events.find_one({'eid': UUID(eid)})
+    assert 'register_id' in event
+    rid = event['register_id']
+
+    # Should be able to register
+    response = client.put(f'/api/event/{rid}/register', json=payload)
+    assert response.status_code == 200
+
+    # Create future event
+    response = client.post('/api/event/', json=new_event)
+    assert response.status_code == 200
+    eid = response.json()["eid"]
+
+    # Create registration for new event
+    response = client.post(f'/api/event/{eid}/qr')
+    assert response.status_code == 201
+
+    # Get new register id
+    event = db.events.find_one({'eid': UUID(eid)})
+    assert 'register_id' in event
+    rid = event['register_id']
+
+    # Join event
+    client_login(client, regular_member["email"], regular_member["password"])
+    response = client.post(f'/api/event/{eid}/join', json=joinEventPayload)
+    assert response.status_code == 200
+
+    # Should not be able to register future event yet
+    response = client.put(f'/api/event/{rid}/register', json=payload)
+    assert response.status_code == 403
+
+    # Set event to happen soon
+    new_future_time = datetime.now() + timedelta(minutes=30)
+    new_future_time_str = new_future_time.strftime("%Y-%m-%d %H:%M:%S")
+    client_login(client, admin_member["email"], admin_member["password"])
+    response = client.put(f'/api/event/{eid}', json={"date": new_future_time_str})
+    assert response.status_code == 200
+
+    # Should be able do register less than 1 hour prior
+    client_login(client, regular_member["email"], regular_member["password"])
+    response = client.put(f'/api/event/{rid}/register', json=payload)
+    assert response.status_code == 200
+
+
+    ## Update others attendance
+    eid = test_events[0]['eid']
+
+    client_login(client, admin_member['email'], admin_member['password'])
+
+    # Get participant list before test
+    response = client.get(f'/api/event/{eid}/participants')
+    assert response.status_code == 200
+    participants_before = response.json()
+
+    # Set first participant as attended
+    payload = {
+        'member_id': participants_before[0]['id'],
+        'attendance': True
+    }
+    # Regular member should not be authorized
+    client_login(client, regular_member["email"], regular_member["password"])
+    response = client.put(f'/api/event/{eid}/register', json=payload)
+    assert response.status_code == 401
+
+    # Admin should be authorized
+    client_login(client, admin_member["email"], admin_member["password"])
+    response = client.put(f'/api/event/{eid}/register', json=payload)
+    assert response.status_code == 200
+
+    # Assert change has been made
+    response = client.get(f'/api/event/{eid}/participants')
+    assert response.status_code == 200
+    participants_after = response.json()
+    assert participants_after[0]['attended'] == payload['attendance']
+
+    # Set as not attended
+    payload["attendance"] = False
+    response = client.put(f'/api/event/{eid}/register', json=payload)
+    assert response.status_code == 200
+
+    # Assert change has been made
+    response = client.get(f'/api/event/{eid}/participants')
+    assert response.status_code == 200
+    participants_after = response.json()
+    assert participants_after[0]['attended'] == payload['attendance']
+
+
+@admin_required('/api/event/{uuid}/register-absence', 'post')
+def test_register_absence(client):
+    eid = test_events[0]['eid']
+
+    client_login(client, admin_member['email'], admin_member['password'])
+
+    # Should not be able to register absence on unconfirmed event
+    response = client.post(f'/api/event/{eid}/register-absence')
+    assert response.status_code == 400
+
+    # Set event to future in order to confirm it
+    response = client.put(
+            f"/api/event/{eid}", json={"date": f"{future_time_str}"})
+    assert response.status_code == 200
+
+    # Now confirm event
+    response = client.post(f'/api/event/{eid}/confirm')
+    assert response.status_code == 200
+
+    # Should not be able to register absence on future event
+    response = client.post(f'/api/event/{eid}/register-absence')
+    assert response.status_code == 400
+
+    # Get participant list
+    response = client.get(f'/api/event/{eid}/participants')
+    assert response.status_code == 200
+    participants = response.json()
+
+
+    # Get first participant before
+    p0_before = db.members.find_one({'id': UUID(participants[0]['id'])})
+    # Get second participant before
+    p1_before = db.members.find_one({'id': UUID(participants[1]['id'])})
+
+    # Set first participant as attended
+    payload = {
+        'member_id': participants[0]['id'],
+        'attendance': True
+    }
+    response = client.put(f'/api/event/{eid}/register', json=payload)
+    assert response.status_code == 200
+
+    # Set event date back to register absence
+    time = datetime.now() - timedelta(hours=1)
+    time_str = time.strftime("%Y-%m-%d %H:%M:%S")
+    res = db.events.find_one_and_update(
+        {'eid': UUID(eid)},
+        {"$set": {"date": time_str}} 
+    )
+    assert res
+
+    # Register absence for event
+    response = client.post(f'/api/event/{eid}/register-absence')
+    assert response.status_code == 200
+
+    # First participant should not be penalized
+    p0_after = db.members.find_one({'id': UUID(participants[0]['id'])})
+    assert p0_after['penalty'] == p0_before['penalty']
+
+    # Second participant should be penalized
+    p1_after = db.members.find_one({'id': UUID(participants[1]['id'])})
+    assert p1_after['penalty'] > p1_before['penalty']
+
+    # Subsequent run should not penalize again
+    response = client.post(f'/api/event/{eid}/register-absence')
+    assert response.status_code == 400
+
+
+@admin_required('/api/event/{uuid}/qr', 'post')
+def test_create_qr(client):
+    eid = test_events[0]['eid']
+
+    client_login(client, admin_member['email'], admin_member['password'])
+
+    # Should be able to create qr
+    response = client.post(f'/api/event/{eid}/qr')
+    assert response.status_code == 201
+
+    # Should receive 400 if qr is already created
+    response = client.post(f'/api/event/{eid}/qr')
+    assert response.status_code == 400
+
+
+@admin_required('/api/event/{uuid}/qr', 'get')
+def test_get_qr(client):
+    eid = test_events[0]['eid']
+
+    client_login(client, admin_member['email'], admin_member['password'])
+
+    # Should not be able to get qr if not yet made
+    response = client.get(f'/api/event/{eid}/qr')
+    assert response.status_code == 400
+
+    # Create qr
+    response = client.post(f'/api/event/{eid}/qr')
+    assert response.status_code == 201
+
+    # Should now get qr document
+    response = client.get(f'/api/event/{eid}/qr')
+    assert response.status_code == 200
+    
