@@ -62,6 +62,7 @@ class AdminMemberUpdate(BaseModel):
     email: Optional[EmailStr]
     classof: Optional[str]
     phone: Optional[str]
+    penalty: Optional[int]
 
 
 class MemberUpdate(BaseModel):
@@ -108,6 +109,7 @@ class Member(BaseModel):
     phone: Optional[str]
     role: Role
     status: Status
+    penalty: int
 
 
 class Participant(BaseModel):
