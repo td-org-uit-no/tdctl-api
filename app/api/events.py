@@ -91,6 +91,39 @@ def get_upcoming_events(request: Request, token: AccessTokenPayload = Depends(op
 
     return [Event.parse_obj(event) for event in upcoming_events]
 
+@router.get('/past-events')
+def get_past_events(request: Request, token: AccessTokenPayload = Depends(optional_authentication)):
+    """ Get last 10 events that have passed """
+    # TODO: Expand endpoint to accept custom amount?
+    db = get_database(request)
+
+    # Get todays date
+    now = datetime.now()
+    date_str = now.strftime("%Y-%m-%d %H:%M:%S")
+    date = datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S")
+
+
+    # Apply search filter according to role
+    search_filter = {
+        "$and": [{'date': {'$lt': date}}, {"public": {"$eq": True}}]}
+    if token and token.role == Role.admin:
+        search_filter = {'date': {"$lt": date}}
+
+    # Get the last 10 events
+    pipeline = [
+        {"$match": search_filter},
+        {"$sort": {"date": -1}},
+        {"$limit": 10}
+    ]
+
+    res = db.events.aggregate(pipeline)
+
+    if not res:
+        raise HTTPException(404, "No past events found")
+    
+    return [Event.parse_obj(event) for event in res]
+
+
 @router.get('/joined-events')
 def get_joined_events(request: Request, token: AccessTokenPayload = Depends(authorize)):
     """ Returns all (upcoming) events user has joined """
