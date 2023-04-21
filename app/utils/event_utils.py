@@ -89,6 +89,19 @@ def event_has_started(event):
         return current_time > start_date
     except ValueError:
         return True
+    
+def event_starts_in(event, dt):
+    """ 
+    Return whether event has started, calculated with the given
+    time delta (in hours)
+    """
+    try:
+        start_date = datetime.strptime(str(event['date']), "%Y-%m-%d %H:%M:%S")
+        current_time = datetime.now() + timedelta(hours=dt)
+        return current_time > start_date
+    except ValueError:
+        return True
+
 
 def num_of_deprioritized_participants(participants):
     return sum(p["penalty"] > 1 for p in participants)

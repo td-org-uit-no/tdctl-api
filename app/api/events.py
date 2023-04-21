@@ -8,16 +8,17 @@ from pydantic import ValidationError
 from starlette.responses import FileResponse
 from starlette.background import BackgroundTasks
 from uuid import uuid4, UUID
-from app.utils.event_utils import event_has_started, num_of_confirmed_participants, num_of_deprioritized_participants, should_penalize, valid_registration, validate_event_dates, validate_pos_update
+from app.utils.event_utils import event_has_started, event_starts_in, num_of_confirmed_participants, num_of_deprioritized_participants, should_penalize, valid_registration, validate_event_dates, validate_pos_update
 from app.utils.validation import validate_image_file_type, validate_uuid
 from ..auth_helpers import authorize, authorize_admin, optional_authentication
 from ..db import get_database, get_image_path, get_qr_path, get_export_path
-from ..models import Event, EventDB, AccessTokenPayload, EventInput, EventUpdate, EventUserView, JoinEventPayload, Participant, ParticipantPosUpdate, Role, SetAttendencePayload
+from ..models import Event, EventDB, AccessTokenPayload, EventInput, EventUpdate, EventUserView, JoinEventPayload, Participant, ParticipantPosUpdate, Role, SetAttendancePayload
 from .utils import get_event_or_404, penalize
 import pandas as pd
 from .mail import send_mail
 from ..models import MailPayload
 import asyncio
+from pymongo import UpdateOne
 import qrcode as qr
 from fpdf import FPDF
 
@@ -118,9 +119,12 @@ def get_past_events(request: Request, token: AccessTokenPayload = Depends(option
 
     res = db.events.aggregate(pipeline)
 
-    if not res:
+    if res == []:
         raise HTTPException(404, "No past events found")
     
+    if not res:
+        raise HTTPException(500)
+
     return [Event.parse_obj(event) for event in res]
 
 
@@ -360,7 +364,8 @@ def join_event(request: Request, id: str, payload: JoinEventPayload, token: Acce
         'transportation': payload.transportation,
         'dietaryRestrictions': payload.dietaryRestrictions,
         'submitDate': datetime.now(),
-        'confirmed': False
+        'confirmed': False,
+        'attended': False
     }
 
     new_fields = {**member, **participantData}
@@ -617,7 +622,221 @@ async def confirmation(request: Request, id: str, token: AccessTokenPayload = De
                     send_mail(confirmation_email)
 
         return Response(status_code=200)
+    
 
+@router.put('/{id}/register', dependencies=[Depends(validate_uuid)])
+def update_attendance(request: Request, id: str, payload: SetAttendancePayload, token: AccessTokenPayload = Depends(authorize)):
+    """ 
+    Update attendance of member. Only admin can update others' attendance.
+    Non-admin: supply event register id in url
+    admin: supply event eid in url
+    """
+    db = get_database(request)
+    isAdmin = token.role == 'admin'
+    isSelfUpdate = payload.member_id == None
+
+    # Only admin can update others
+    if not isSelfUpdate and not isAdmin:
+        raise HTTPException(401, "Must be admin to set others' attendance")
+
+    # On self update, find event associated with register id
+    if isSelfUpdate:
+        event = db.events.find_one({'register_id': UUID(id)})
+        member = db.members.find_one({'id': UUID(token.user_id)})
+    else:
+        event = get_event_or_404(db, id)
+        member = db.members.find_one({'id': UUID(payload.member_id)})
+
+    # Verify event is valid
+    if isSelfUpdate and not event:
+        raise HTTPException(404, "Could not find event in here")
+
+    # Verify member is valid
+    if not member:
+        raise HTTPException(404, "User could not be found")
+    
+    # Non admin cannot register long before event start
+    if not isAdmin and not event_starts_in(event, 1):
+        raise HTTPException(403, "Cannot register attendance yet")
+    
+    # Get participant entry for event with member
+    user_event = db.events.find_one({"eid": event["eid"]}, {"participants": {
+        "$elemMatch": {"id": member["id"]}}})
+    
+    # Verify user is joined event
+    if not user_event or 'participants' not in user_event:
+        raise HTTPException(400, "User not joined event")
+    
+    # Update attendance
+    res = db.events.update_one(
+        {'eid': event['eid'], 'participants': {
+            '$elemMatch': {'id': member['id']}
+        }},
+        {'$set': {'participants.$.attended': payload.attendance}}
+    )
+
+    if not res:
+        raise HTTPException(500)
+    
+    return Response(status_code=200)
+    
+
+@router.post('/{id}/register-absence', dependencies=[Depends(validate_uuid)])
+async def register_absence(request: Request, id: str, token: AccessTokenPayload = Depends(authorize_admin)):
+    """ Give all members absent on binding event a penalty """
+    db = get_database(request)
+    event = get_event_or_404(db, id)
+
+    if not event["bindingRegistration"]:
+        raise HTTPException(400, "Cannot penalize on non-binding events")
+    
+    if not event_has_started(event):
+        raise HTTPException(400, "Cannot penalize before event start") 
+    
+    if not event["confirmed"]:
+        raise HTTPException(400, "Cannot penalize unconfirmed event")
+        
+
+    # Aggregate all participants that are confirmed, but not attended,
+    # and group them by ids
+    pipeline = [
+        {"$match": {"eid": event["eid"]}},
+        {"$unwind": {"path": "$participants"}},
+        {"$match": {"$and": [
+            {"participants.confirmed": {"$eq": True}},
+            {"participants.attended": {"$ne": True}}
+        ]}},
+        {"$group": {"_id": "$participants.id"}},
+    ]
+    absent = list(db.events.aggregate(pipeline))
+
+    if not absent or len(absent) == 0:
+        raise HTTPException(400, "No members to penalize")
+    
+    # Get ids
+    absent_ids = [p["_id"] for p in absent]
+    
+    # Get already penalized ids
+    penalized_ids = event["registeredPenalties"]
+
+    # Members to penalize
+    to_penalize = []
+    for m_id in absent_ids:
+        if m_id not in penalized_ids:
+            to_penalize.append(m_id)
+
+
+    if len(to_penalize) == 0:
+        raise HTTPException(400, "Members already penalized")
+
+    # Add penalty to selected
+    updates = []
+    for m_id in to_penalize:
+        # Add penalty to member and all event participant entries
+        await penalize(db, m_id)
+        # Add id to registeredPenalties on event
+        updates.append(UpdateOne(
+            {"eid": event["eid"]}, 
+            {"$addToSet": {"registeredPenalties": m_id}}
+        ))
+
+    # Write to event db
+    res = db.events.bulk_write(updates)
+
+    if not res:
+        raise HTTPException(500)
+    
+    return Response(status_code=200)
+
+
+
+@router.post('/{id}/qr', dependencies=[Depends(validate_uuid)])
+def create_registration_qr(request: Request, id: str, token: AccessTokenPayload = Depends(authorize_admin)):
+    """ Generate a registration QR code for event """
+    db = get_database(request)
+    event = get_event_or_404(db, id)
+
+    # Check whether QR already has been created
+    rid_created = 'register_id' in event and event['register_id']
+    filepath = f'{get_qr_path(request)}/{event["eid"].hex}.pdf'
+    if rid_created and os.path.exists(filepath):
+        raise HTTPException(400, "Event QR already created")
+    
+
+    # Generate new unique id for attendance registration
+    # Only if rid has not yet been created
+    register_id = uuid4()
+
+    res = db.events.update_one(
+        {'eid': UUID(id)},
+        {'$set': {'register_id': register_id}}
+    )
+
+    if not res:
+        raise HTTPException(500)
+    
+    # Create directory if not present
+    path = get_qr_path(request)
+    if not os.path.exists(path):
+        os.makedirs(path)
+
+    # Generate qr code 
+    url = f'https://td-uit.no/event/{register_id}/register/'
+    img = qr.make(url)
+    qr_path = path
+    img_path = f'{qr_path}/{register_id.hex}.png'
+    img.save(img_path)
+
+    # Create PDF
+    pdf = FPDF()
+    pdf.add_page()
+
+    # Add title
+    title = event['title']
+    title_h = pdf.h * 0.05
+    pdf.set_font('helvetica', size=26)
+    pdf.multi_cell(0, title_h, txt = title, align = 'C', max_line_height=title_h)
+
+    # Get width and heigh to display image
+    w, h = img.size
+    pdf_w = pdf.w * 0.8
+    pdf_h = pdf_w * h / w
+    y = title_h + pdf.h * 0.08
+
+    # Add QR code
+    pdf.image(img_path, x = pdf.w * 0.1, y = y , w = pdf_w, h = pdf_h)
+
+    # Add new line of text below the image
+    pdf.set_xy(0, y + pdf_h + pdf.h * 0.05)
+    pdf.set_font('helvetica', size=10)
+    pdf.cell(0, 20, txt=url, align='C')
+
+    # Save PDF
+    pdf_path = f'{qr_path}/{event["eid"].hex}.pdf'
+    pdf.output(pdf_path)
+
+    # Clean up QR image
+    os.remove(img_path)
+
+    # Send qr PDF
+    headers = {'Content-Disposition': 'attachment; filename="QR.pdf"'}
+    return FileResponse(pdf_path, headers=headers, status_code=201)
+
+
+@router.get('/{id}/qr', dependencies=[Depends(validate_uuid)])
+def get_registration_qr(request: Request, id: str, token: AccessTokenPayload = Depends(authorize_admin)):
+    """ Get qr code link to registration page of event """
+    db = get_database(request)
+    event = get_event_or_404(db, id)
+    
+    if not event['register_id']:
+        raise HTTPException(400, "Event not open for registration")
+
+    # Send qr PDF
+    path = f'{get_qr_path(request)}/{event["eid"].hex}.pdf'
+    headers = {'Content-Disposition': 'attachment; filename="QR.pdf"'}
+    return FileResponse(path, headers=headers)
+    
 
 @router.get('/{id}/export', dependencies=[Depends(validate_uuid)])
 async def exportEvent(background_tasks: BackgroundTasks, request: Request, id: str, token: AccessTokenPayload = Depends(authorize_admin)):

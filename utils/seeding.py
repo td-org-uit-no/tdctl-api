@@ -96,6 +96,7 @@ def seed_events(db, seed_path):
             ) + timedelta(hours=random.choices(
                 dates, weights=date_weights, k=1)[0])
             member['confirmed'] = False
+            member['attended'] = False
             event["participants"].append(member)
 
         img_dst = "db/eventImages/"
