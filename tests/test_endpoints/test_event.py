@@ -122,6 +122,20 @@ def test_get_upcoming_events(client):
     assert len(response.json()) == 1
 
 
+def test_get_past_events(client):
+    # Login
+    client_login(client, admin_member["email"], admin_member["password"])
+
+    # Create future event
+    response = client.post('/api/event/', json=new_event)
+    assert response.status_code == 200
+
+    # Should only get past events
+    response = client.get('/api/event/past-events/')
+    assert response.status_code == 200
+    assert len(response.json()) == len(test_events)
+
+
 @authentication_required("/api/event/joined-events", "get")
 def test_get_joined_events(client):
     # Login
