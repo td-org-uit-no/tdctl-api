@@ -11,9 +11,9 @@ from uuid import uuid4, UUID
 from app.utils.event_utils import event_has_started, num_of_confirmed_participants, num_of_deprioritized_participants, should_penalize, valid_registration, validate_event_dates, validate_pos_update
 from app.utils.validation import validate_image_file_type, validate_uuid
 from ..auth_helpers import authorize, authorize_admin, optional_authentication
-from ..db import get_database, get_image_path, get_export_path
-from ..models import Event, EventDB, AccessTokenPayload, EventInput, EventUpdate, EventUserView, JoinEventPayload, Participant, ParticipantPosUpdate, Role
-from .utils import get_event_or_404
+from ..db import get_database, get_image_path, get_qr_path, get_export_path
+from ..models import Event, EventDB, AccessTokenPayload, EventInput, EventUpdate, EventUserView, JoinEventPayload, Participant, ParticipantPosUpdate, Role, SetAttendencePayload
+from .utils import get_event_or_404, penalize
 import pandas as pd
 from .mail import send_mail
 from ..models import MailPayload
@@ -385,7 +385,7 @@ def join_event(request: Request, id: str, payload: JoinEventPayload, token: Acce
 
 
 @router.post('/{id}/leave', dependencies=[Depends(validate_uuid)])
-def leave_event(request: Request, id: str, token: AccessTokenPayload = Depends(authorize)):
+async def leave_event(request: Request, id: str, token: AccessTokenPayload = Depends(authorize)):
     db = get_database(request)
     event = get_event_or_404(db, id)
     member = db.members.find_one({'id': UUID(token.user_id)})
@@ -413,13 +413,9 @@ def leave_event(request: Request, id: str, token: AccessTokenPayload = Depends(a
             {'eid': event["eid"]},
             {"$addToSet": {"registeredPenalties": member["id"]}}
         )
-        # only give penalty if addToSet added a new entry
-        # TODO: Update penalty field in every Participants list where this user is joined
+        # Only give penalty if addToSet added a new entry
         if res.modified_count != 0:
-            db.members.find_one_and_update(
-                {'id': member["id"]},
-                {"$inc": {'penalty': 1}}
-            )
+            await penalize(db, member["id"])
 
     res = db.events.update_one({'eid': event['eid']}, {
         "$pull": {"participants": {"id": member["id"]}}})
