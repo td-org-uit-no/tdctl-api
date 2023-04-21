@@ -18,6 +18,8 @@ import pandas as pd
 from .mail import send_mail
 from ..models import MailPayload
 import asyncio
+import qrcode as qr
+from fpdf import FPDF
 
 
 router = APIRouter()
