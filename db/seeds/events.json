@@ -3,7 +3,7 @@
     "eid": "8f559f0190ba48cb9cd68cd9475a99be",
     "title": "Bedriftspresentasjon med Mnemonic",
     "address": "Realfagbygget A036",
-    "date": "2023-05-20 16:30:00",
+    "date": "2030-05-20 16:30:00",
     "duration": 2,
     "price": 0,
     "maxParticipants": 35,
@@ -20,7 +20,7 @@
     "eid": "4392615fecd0491e9666566f04c51d9c",
     "title": "Bedriftspresentasjon med Fink",
     "address": "Realfagbygget A036",
-    "date": "2023-04-20 16:30:00",
+    "date": "2030-04-20 16:30:00",
     "duration": 2,
     "price": 0,
     "maxParticipants": 25,
@@ -48,7 +48,7 @@
     "food": true,
     "public": true,
     "bindingRegistration": true,
-    "registrationOpeningDate": "2023-04-15 16:30:00",
+    "registrationOpeningDate": "2030-04-15 16:30:00",
     "registeredPenalties": []
   }
 ]
