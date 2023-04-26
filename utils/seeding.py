@@ -99,12 +99,12 @@ def seed_events(db, seed_path):
             member['attended'] = False
             event["participants"].append(member)
 
-        img_dst = "db/eventImages/"
+        img_dst = "db/event_images/"
         if db.name == 'test':
-            img_dst = "db/testEventImages"
+            img_dst = "db/test_event_images"
 
         try:
-            shutil.copy(f'{base_dir}/seedImages/{event["eid"]}.png', img_dst)
+            shutil.copy(f'{base_dir}/seed_images/{event["eid"]}.png', img_dst)
         except FileNotFoundError:
             pass
 

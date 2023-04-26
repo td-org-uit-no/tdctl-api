@@ -177,7 +177,7 @@ def test_get_event_picture(client):
 @admin_required("/api/event/{uuid}/image", "post")
 def test_upload_event_picture(client):
     eid = test_events[0]["eid"]
-    img_path = f'db/seeds/seedImages/{eid}.png'
+    img_path = f'db/seeds/seed_images/{eid}.png'
     file = {
         "image": (f'{eid}.png', open(f'{img_path}', 'rb'), 'image/png'),
     }
