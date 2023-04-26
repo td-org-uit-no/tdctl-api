@@ -9,9 +9,7 @@ services:
       dockerfile: .docker/dockerfile.api.production
     volumes:
       - ../db/seeds:/home/prod_user/db/seeds
-      - ../db/eventImages:/home/prod_user/db/eventImages
-      - ../db/eventExports:/home/prod_user/db/eventExports
-      - ../db/jobImages:/home/prod_user/db/jobImages
+      - ../db/file_storage:/home/prod_user/db/file_storage
 
       # mount .config as mail credentials cannot be on github
       - ../.config:/home/prod_user/.config
