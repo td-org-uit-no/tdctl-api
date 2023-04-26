@@ -832,8 +832,10 @@ def get_registration_qr(request: Request, id: str, token: AccessTokenPayload = D
     if not event['register_id']:
         raise HTTPException(400, "Event not open for registration")
 
-    # Send qr PDF
     path = f'{get_qr_path(request)}/{event["eid"].hex}.pdf'
+    if not os.path.isfile(path):
+        raise HTTPException(404, "Could not find QR code")
+    # Send qr PDF
     headers = {'Content-Disposition': 'attachment; filename="QR.pdf"'}
     return FileResponse(path, headers=headers)
     
