@@ -99,7 +99,7 @@ def seed_events(db, seed_path):
             member['attended'] = False
             event["participants"].append(member)
 
-        img_dst = "db/event_images/"
+        img_dst = "db/file_storage/event_images/"
         if db.name == 'test':
             img_dst = "db/test_event_images"
 
