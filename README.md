@@ -34,35 +34,35 @@ We have chosen a tech stack that should make it easy for new students to quickly
 
 3. Add executable rights to the container util script
 ```bash
-    chmod +x ./dev_utils
+    chmod +x ./dev_utils.sh
 ```
 
 4. Build docker container
 > This is only needed if it is the first time you running the server or if there has been any changes to the runtime environment of the server. 
 ```bash
-    ./dev_utils compose build
+    ./dev_utils.sh compose build
 ```
 
 5. Launch the container
     * Run container in background
-        > Shutdown the container by running ```./dev_utils compose down```
+        > Shutdown the container by running ```./dev_utils.sh compose down```
         ```bash
-            ./dev_utils compose up -d
+            ./dev_utils.sh compose up -d
         ```
         - You can now start a interactive shell within the container by running the command
             > To get an interactive shell in the database container add ```db``` to the end of this command
             ```bash
-                ./dev_utils exec
+                ./dev_utils.sh exec
             ```
     * Run the container and view container output
         > Shutdown the container by pressing ```ctrl-C```
         ```bash
-            ./dev_utils compose up
+            ./dev_utils.sh compose up
         ```
 6. **Optional:** Seed the database with test users:
     > This will provide you with a dummy admin user which has the credentials *Username* : ```Admin``` *Password* : ```Admin!234```
     ```bash
-        ./dev_utils seed
+        ./dev_utils.sh seed
     ```
 
 When the container is up and running you should be to view the api at [localhost:5000](http://localhost:5000)
@@ -73,7 +73,7 @@ When the container is up and running you should be to view the api at [localhost
 To run tests make sure the container is running, then run the following command
 
 ```bash
-  ./dev_utils test
+  ./dev_utils.sh test
 ```
 
 You should now se an output similar to this:
