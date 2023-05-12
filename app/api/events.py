@@ -869,7 +869,7 @@ async def exportEvent(background_tasks: BackgroundTasks, request: Request, id: s
     df_title = pd.DataFrame(event_header)
     df_event_data = pd.DataFrame(event_data)
     df_participants = pd.DataFrame(
-        data=participants)
+        data=participants, )
     df_event_ditails = pd.DataFrame(data=event_details)
 
     # Write dataframes to file
@@ -900,24 +900,24 @@ async def exportEvent(background_tasks: BackgroundTasks, request: Request, id: s
     worksheet.set_row(4, 15, table_header_format)
     worksheet.set_row(9, 15, table_header_format)
 
-    if len(participants) <= event['maxParticipants']:
-        for col in range(14, 14+len(participants), 2):
-            worksheet.set_row(
-                col, 15 + 1, cell_format=participants_accept_format)
-            worksheet.set_row(
-                col+1, 15 + 1, cell_format=participants_accept_format2)
-    else:
-        for col in range(14, 14+len(participants), 2):
-            if(col < 14+event['maxParticipants']):
-                worksheet.set_row(
-                    col, 15 + 1, cell_format=participants_accept_format)
-                worksheet.set_row(
-                    col+1, 15 + 1, cell_format=participants_accept_format2)
-            else:
-                worksheet.set_row(
-                    col, 15 + 1, cell_format=participants_wait_format)
-                worksheet.set_row(
-                    col+1, 15 + 1, cell_format=participants_wait_format2)
+    pos_in_waitinglist = len(event["participants"])
+    if event["maxParticipants"]:
+        pos_in_waitinglist = event["maxParticipants"]
+
+    # 0 indexed
+    participant_list_start_pos = 14
+    accept_color_pair = (participants_accept_format, participants_accept_format2)
+    wait_color_pair = (participants_wait_format, participants_wait_format2)
+    for col in range(0, len(participants)):
+        current_row = participant_list_start_pos + col
+        color_scheme = accept_color_pair
+        if col >= pos_in_waitinglist:
+            # set red color when user is in waiting list
+            color_scheme = wait_color_pair
+        # switch color version every other row
+        color_version = color_scheme[col%2]
+        worksheet.set_row(current_row, current_row, cell_format=color_version)
+
     # Cleanup file created after request is done
     writer.close()
     background_tasks.add_task(os.remove, path)
