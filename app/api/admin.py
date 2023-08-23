@@ -68,7 +68,7 @@ def update_member(request: Request, id: str, memberData: AdminMemberUpdate, toke
     values = memberData.dict()
     updateInfo = {}
     for key in values:
-        if values[key]:
+        if values[key] or values[key] == 0:
             updateInfo[key] = values[key]
 
     if not updateInfo:
