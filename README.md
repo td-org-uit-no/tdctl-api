@@ -65,7 +65,7 @@ We have chosen a tech stack that should make it easy for new students to quickly
         ./dev_utils.sh seed
     ```
 
-When the container is up and running you should be to view the api at [localhost:5000](http://localhost:5000)
+When the container is up and running you should be to view the api at [localhost:5001](http://localhost:5001)
     
         
 ## Running Tests
