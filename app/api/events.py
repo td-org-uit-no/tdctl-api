@@ -49,7 +49,7 @@ def create_event(request: Request, newEvent: EventInput, token: AccessTokenPaylo
     if newEvent.bindingRegistration:
         additionalFields['confirmed'] = False
 
-    event = newEvent.dict()
+    event = newEvent.model_dump()
     event.update(additionalFields)
     event = db.events.insert_one(event)
 
@@ -90,7 +90,7 @@ def get_upcoming_events(request: Request, token: AccessTokenPayload = Depends(op
 
     upcoming_events = db.events.find(search_filter)
 
-    return [Event.parse_obj(event) for event in upcoming_events]
+    return [Event.model_validate(event) for event in upcoming_events]
 
 @router.get('/past-events')
 def get_past_events(request: Request, token: AccessTokenPayload = Depends(optional_authentication)):
@@ -125,7 +125,7 @@ def get_past_events(request: Request, token: AccessTokenPayload = Depends(option
     if not res:
         raise HTTPException(500)
 
-    return [Event.parse_obj(event) for event in res]
+    return [Event.model_validate(event) for event in res]
 
 
 @router.get('/joined-events')
@@ -155,7 +155,7 @@ def get_joined_events(request: Request, token: AccessTokenPayload = Depends(auth
     ]
     res = db.events.aggregate(pipeline)
 
-    return [EventUserView.parse_obj(e) for e in res]
+    return [EventUserView.model_validate(e) for e in res]
 
 
 # custom uuid validation as eid: UUID will not allow users to copy eids into swagger as they are not formatted correctly
@@ -196,7 +196,7 @@ def update_event(request: Request, id: str, eventUpdate: EventUpdate, AccessToke
     event = get_event_or_404(db, id)
 
     # exclude_unset allows null to be included allowing for optional fields to be updated to be null i.e not present
-    values = eventUpdate.dict(exclude_unset=True)
+    values = eventUpdate.model_dump(exclude_unset=True)
     if len(values) == 0:
         raise HTTPException(400, "Update values cannot be empty")
 
@@ -212,7 +212,7 @@ def update_event(request: Request, id: str, eventUpdate: EventUpdate, AccessToke
 
     # check if update does not remove required fields i.e a valid update
     try:
-        EventDB.parse_obj({**event, **values})
+        EventDB.model_validate({**event, **values})
     except ValidationError:
         raise HTTPException(
             400, "Cannot remove field as this is required filed for all events")
@@ -254,9 +254,9 @@ def get_event_by_id(request: Request, id: str, token: AccessTokenPayload = Depen
             403, "Insufficient privileges to access this resource")
 
     if role == Role.admin:
-        return EventDB.parse_obj(event)
+        return EventDB.model_validate(event)
 
-    return EventUserView.parse_obj(event)
+    return EventUserView.model_validate(event)
 
 
 @router.get('/{id}/participants', dependencies=[Depends(validate_uuid)])
@@ -265,7 +265,7 @@ def get_event_participants(request: Request, id: str, token: AccessTokenPayload 
     event = get_event_or_404(db, id)
 
     if token.role == Role.admin:
-        return [Participant.parse_obj(p) for p in event['participants']]
+        return [Participant.model_validate(p) for p in event['participants']]
 
     if event["maxParticipants"] != None:
         # only return the list when events are open i.e no cap
@@ -318,7 +318,7 @@ def update_event_options(request: Request, id: str, payload: JoinEventPayload, t
         raise HTTPException(400, "Cannot update options for confirmed event")
 
     # Create a dictionary with the payload
-    values = payload.dict(exclude_unset=True)
+    values = payload.model_dump(exclude_unset=True)
     update_dict = {f"participants.$.{key}": value for key, value in values.items()}
     
     # Update db field
@@ -369,7 +369,7 @@ def join_event(request: Request, id: str, payload: JoinEventPayload, token: Acce
     }
 
     new_fields = {**member, **participantData}
-    participant = Participant.parse_obj(new_fields)
+    participant = Participant.model_validate(new_fields)
 
     # find pos in query to have the newest list when inserting
     pos = len(event["participants"])
@@ -381,7 +381,7 @@ def join_event(request: Request, id: str, payload: JoinEventPayload, token: Acce
         {'eid': event['eid']}, 
         {"$push": {
             "participants": { 
-                "$each": [participant.dict()], 
+                "$each": [participant.model_dump()], 
                 "$position": pos}
             }
         })
@@ -514,7 +514,7 @@ async def reorder_participants(request: Request, id:str, position_update: Partic
             raise HTTPException(400, "Not valid: got invalid or outdated participant list")
 
         for participant in position_update.updateList:
-            participant = participant.dict()
+            participant = participant.model_dump()
             for i, p in enumerate(participants):
                 if p["id"] == participant["id"]:
                     new_pos = participant["pos"]
@@ -532,7 +532,7 @@ async def reorder_participants(request: Request, id:str, position_update: Partic
         if event["maxParticipants"]:
             for i, p in enumerate(participants):
                 # ensure fields exist
-                p = Participant.parse_obj(p).dict()
+                p = Participant.model_validate(p).model_dump()
                 if p["confirmed"] and i >= event["maxParticipants"]:
                    raise HTTPException(400, "Confirmed user cannot be moved to a non confirmed spot") 
 
@@ -853,7 +853,7 @@ async def exportEvent(background_tasks: BackgroundTasks, request: Request, id: s
     event = get_event_or_404(db, id)
 
     participants = [Participant(
-        **p).copy(exclude={'id'}).dict() for p in event['participants']]
+        **p).model_copy().model_dump(exclude={'id'}) for p in event['participants']]
 
     event_details = [{'Title': event['title'], 'date':event['date'], 'address':event['address'], 'price':event['price'],
                       'maxParticipants':event['maxParticipants'], 'duration':event['duration'], 'transportation':str(event['transportation']), 'food':str(event['food'])}]

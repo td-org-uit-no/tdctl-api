@@ -109,8 +109,8 @@ def seed_events(db, seed_path):
             pass
 
         event["date"] = datetime.strptime(event['date'], "%Y-%m-%d %H:%M:%S")
-        parsed_event = EventDB.parse_obj(event)
-        db["events"].insert_one(parsed_event.dict())
+        parsed_event = EventDB.model_validate(event)
+        db["events"].insert_one(parsed_event.model_dump())
 
 
 def get_db():

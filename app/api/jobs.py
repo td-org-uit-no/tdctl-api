@@ -20,7 +20,7 @@ router = APIRouter()
 def get_jobs(request: Request):
     db = get_database(request)
     jobs = db.jobs.find()
-    return [JobItem.parse_obj(job) for job in jobs]
+    return [JobItem.model_validate(job) for job in jobs]
 
 
 @router.get('/{id}')
@@ -29,18 +29,18 @@ def get_job_by_id(request: Request, id: str):
     job = db.jobs.find_one({'id': UUID(id)})
     if job == None:
         raise HTTPException(404, "No such job with this id")
-    return JobItem.parse_obj(job)
+    return JobItem.model_validate(job)
 
 
 @router.post('/')
 def create_job(request: Request, job: JobItemPayload, token: AccessTokenPayload = Depends(authorize_admin)):
     db = get_database(request)
-    item = job.dict()
+    item = job.model_dump()
     jid = uuid4()
     item['id'] = jid
     item['published_date'] = datetime.now()
-    _job = JobItem.parse_obj(item)
-    retval = db.jobs.insert_one(_job.dict())
+    _job = JobItem.model_validate(item)
+    retval = db.jobs.insert_one(_job.model_dump())
     if not retval:
         raise HTTPException(500, "Job could not be created")
 
@@ -64,12 +64,12 @@ def update_job(request: Request, id: str, job: UpdateJob, token: AccessTokenPayl
     if not orig_job:
         raise HTTPException(404, "Job could not be found")
 
-    _job = job.dict(exclude_unset=True)
+    _job = job.model_dump(exclude_unset=True)
     if len(_job) == 0:
         raise HTTPException(400, "Update values cannot be empty")
 
     try:
-        JobItem.parse_obj({**orig_job, **_job})
+        JobItem.model_validate({**orig_job, **_job})
     except ValidationError:
         raise HTTPException(
             400, "Cannot remove field as this is required filed for all jobs")

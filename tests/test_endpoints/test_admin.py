@@ -36,7 +36,7 @@ def test_create_admin(client: TestClient):
     assert existing_member
     
     # testing creating a user with existing email
-    existing_member = MemberInput.parse_obj(existing_member).dict()
+    existing_member = MemberInput.model_validate(existing_member).model_dump()
     response = client.post("/api/admin/", json=existing_member)
     assert response.status_code == 409
 

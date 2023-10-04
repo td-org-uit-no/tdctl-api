@@ -1,6 +1,6 @@
 from enum import Enum
 from typing import Literal, Optional, List
-from pydantic import BaseModel, EmailStr, UUID4, create_model, validator
+from pydantic import BaseModel, EmailStr, UUID4, create_model, field_validator
 from datetime import datetime
 
 from pydantic.fields import Field
@@ -53,23 +53,23 @@ class MemberInput(BaseModel):
     password: str
     classof: str
     graduated: bool
-    phone: Optional[str]
+    phone: Optional[str] = None
 
 class AdminMemberUpdate(BaseModel):
-    realName: Optional[str]
-    role: Optional[Role]
-    status: Optional[Status]
-    email: Optional[EmailStr]
-    classof: Optional[str]
-    phone: Optional[str]
-    penalty: Optional[int]
+    realName: Optional[str] = None
+    role: Optional[Role] = None
+    status: Optional[Status] = None
+    email: Optional[EmailStr] = None
+    classof: Optional[str] = None
+    phone: Optional[str] = None
+    penalty: Optional[int] = None
 
 
 class MemberUpdate(BaseModel):
-    realName: Optional[str]
-    email: Optional[EmailStr]
-    classof: Optional[str]
-    phone: Optional[str]
+    realName: Optional[str] = None
+    email: Optional[EmailStr] = None
+    classof: Optional[str] = None
+    phone: Optional[str] = None
 
 class MemberDB(BaseModel):
     id: UUID4
@@ -78,22 +78,24 @@ class MemberDB(BaseModel):
     password: str
     classof: str
     graduated: bool
-    phone: Optional[str]
+    phone: Optional[str] = None
     role: Role
     status: Status
     # penalty for late cancellation 0-no penalty 1-warning and 2-lower priority
     penalty: int
 
     # sets role to unconfirmed if role is something else than the predefined roles
-    # pre=true makes this validation erun before pydantic's model validator
-    @validator('role', pre=True)
+    # mode='before' makes this validation run before pydantic's model validator
+    @field_validator('role', mode='before')
+    @classmethod
     def role_validator(cls, v):
         if v not in Role.__members__:
             return Role.unconfirmed
         return v
 
     # sets role to inactive if status is something else than the predefined status
-    @validator('status', pre=True)
+    @field_validator('status', mode='before')
+    @classmethod
     def status_validator(cls, v):
         if v not in Status.__members__:
             return Status.inactive
@@ -106,7 +108,7 @@ class Member(BaseModel):
     email: EmailStr
     classof: str
     graduated: bool
-    phone: Optional[str]
+    phone: Optional[str] = None
     role: Role
     status: Status
     penalty: int
@@ -117,7 +119,7 @@ class Participant(BaseModel):
     realName: str
     email: EmailStr
     classof: str
-    phone: Optional[str]
+    phone: Optional[str] = None
     role: Role
     food: bool
     transportation: bool
@@ -125,8 +127,8 @@ class Participant(BaseModel):
     submitDate: datetime
     penalty: int
     # indicate if participant has recieved an confirmation mail
-    confirmed: Optional[bool]
-    attended: Optional[bool]
+    confirmed: Optional[bool] = None
+    attended: Optional[bool] = None
 
 
 class ParticipantPosUpdate(BaseModel):
@@ -140,20 +142,20 @@ class EventInput(BaseModel):
     price: int
     description: str  # short info about the event
     # duration in hours
-    duration: Optional[int]
+    duration: Optional[int] = None
     # more detailed practical information
     public: bool
     bindingRegistration: bool
     transportation: bool
     food: bool
-    extraInformation: Optional[str]
-    maxParticipants: Optional[int]
-    romNumber: Optional[str]
-    building: Optional[str]
-    picturePath: Optional[str]
+    extraInformation: Optional[str] = None
+    maxParticipants: Optional[int] = None
+    romNumber: Optional[str] = None
+    building: Optional[str] = None
+    picturePath: Optional[str] = None
     # time before event starting
-    registrationOpeningDate: Optional[datetime]
-    confirmed: Optional[bool]
+    registrationOpeningDate: Optional[datetime] = None
+    confirmed: Optional[bool] = None
 
 
 class EventUserView(EventInput):
@@ -166,21 +168,21 @@ class Event(EventUserView):
     # Collects all user penalties registered, ensuring only one penalty is given per event
     registeredPenalties: List[UUID4]
     # Register id
-    register_id: Optional[UUID4]
+    register_id: Optional[UUID4] = None
 
 
 class EventUpdate(BaseModel):
-    title: Optional[str]
-    date: Optional[datetime]
-    address: Optional[str]
-    description: Optional[str]
-    maxParticipants: Optional[int]
-    public: Optional[bool]
-    price: Optional[int]
-    transportation: Optional[bool]
-    food: Optional[bool]
-    registrationOpeningDate: Optional[datetime]
-    confirmed: Optional[bool]
+    title: Optional[str] = None
+    date: Optional[datetime] = None
+    address: Optional[str] = None
+    description: Optional[str] = None
+    maxParticipants: Optional[int] = None
+    public: Optional[bool] = None
+    price: Optional[int] = None
+    transportation: Optional[bool] = None
+    food: Optional[bool] = None
+    registrationOpeningDate: Optional[datetime] = None
+    confirmed: Optional[bool] = None
 
 
 class EventDB(Event):
@@ -212,9 +214,9 @@ class ForgotPasswordPayload(BaseModel):
 
 
 class JoinEventPayload(BaseModel):
-    food: Optional[bool]
-    transportation: Optional[bool]
-    dietaryRestrictions: Optional[str]
+    food: Optional[bool] = None
+    transportation: Optional[bool] = None
+    dietaryRestrictions: Optional[str] = None
 
 
 class PenaltyInput(BaseModel):
@@ -223,7 +225,7 @@ class PenaltyInput(BaseModel):
     
 
 class SetAttendancePayload(BaseModel):
-    member_id: Optional[str]
+    member_id: Optional[str] = None
     attendance: bool
 
 
@@ -237,21 +239,21 @@ class JobItemPayload(BaseModel):
     published_date: datetime
     location: str
     link: str
-    start_date: Optional[datetime]
-    due_date: Optional[datetime]
+    start_date: Optional[datetime] = None
+    due_date: Optional[datetime] = None
 
 class UpdateJob(BaseModel):
-    company: Optional[str]
-    title: Optional[str]
-    type: Optional[str]
-    tags: Optional[List[str]]
-    description_preview: Optional[str]
-    description: Optional[str]
-    published_date: Optional[datetime]
-    location: Optional[str]
-    link: Optional[str]
-    start_date: Optional[datetime]
-    due_date: Optional[datetime]
+    company: Optional[str] = None
+    title: Optional[str] = None
+    type: Optional[str] = None
+    tags: Optional[List[str]] = None
+    description_preview: Optional[str] = None
+    description: Optional[str] = None
+    published_date: Optional[datetime] = None
+    location: Optional[str] = None
+    link: Optional[str] = None
+    start_date: Optional[datetime] = None
+    due_date: Optional[datetime] = None
 
 class JobItem(JobItemPayload):
     id: UUID4
