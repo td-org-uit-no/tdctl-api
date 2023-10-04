@@ -19,7 +19,7 @@ def login(request: Request, credentials: Credentials, response: Response):
     if not member:
         raise HTTPException(401, 'Invalid e-mail')
         #raise credential_exception
-    member = MemberDB.parse_obj(member)
+    member = MemberDB.model_validate(member)
 
     if not check_password_hash(member.password, credentials.password):
         raise credential_exception
@@ -43,7 +43,7 @@ def login(request: Request, credentials: Credentials, response: Response):
 def logout(request: Request, response: Response):
     try:
         refresh_token = request.cookies.get("refresh_token") or ""
-        token = RefreshTokenPayload.parse_obj(decode_token(
+        token = RefreshTokenPayload.model_validate(decode_token(
             refresh_token, request.app.config))
     except:
         raise HTTPException(401, "Refresh token is invalid")
@@ -60,7 +60,7 @@ def renew(request: Request, response: Response):
     if not refresh_token:
         raise HTTPException(401, 'Refresh token is not present')
 
-    tokenPayload = RefreshTokenPayload.parse_obj(
+    tokenPayload = RefreshTokenPayload.model_validate(
         decode_token(refresh_token, request.app.config))
 
     if is_blacklisted(tokenPayload, request.app.db):
@@ -70,7 +70,7 @@ def renew(request: Request, response: Response):
         # Edge case
         raise HTTPException(
             400, 'The member associated with refresh token no longer exists')
-    user = MemberDB.parse_obj(user)
+    user = MemberDB.model_validate(user)
     token = create_token(user, request.app.config)
     refresh_token = create_refresh_token(user, request.app.config)
     set_auth_cookies(response, token, refresh_token)
@@ -83,7 +83,7 @@ def renew(request: Request, response: Response):
 @router.post('/password')
 def change_password(passwords: ChangePasswordPayload, request: Request, token: AccessTokenPayload = Depends(authorize)):
     db = get_database(request)
-    user = MemberDB.parse_obj(db.members.find_one({'id': UUID(token.user_id)}))
+    user = MemberDB.model_validate(db.members.find_one({'id': UUID(token.user_id)}))
     if not user:
         raise HTTPException(401, 'User not found')
 

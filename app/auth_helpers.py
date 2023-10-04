@@ -46,7 +46,7 @@ def authorize(request: Request):
         raise HTTPException(
             401, 'Access token is not present')
 
-    payload = AccessTokenPayload.parse_obj(decode_token(
+    payload = AccessTokenPayload.model_validate(decode_token(
         access_token, request.app.config))
 
     if not payload.access_token:
@@ -64,7 +64,7 @@ def optional_authentication(request: Request):
         try:
             # Don't use decode_token function as it raises an exception which we
             # do not want on optional authentication
-            payload = AccessTokenPayload.parse_obj(decode(access_token, request.app.config.SECRET_KEY, algorithms=['HS256']))
+            payload = AccessTokenPayload.model_validate(decode(access_token, request.app.config.SECRET_KEY, algorithms=['HS256']))
             return payload.access_token and payload or None
         except:
             return None
@@ -129,7 +129,7 @@ def blacklist_token(refreshToken: RefreshTokenPayload, db: Database):
     Blacklists the provided (decoded) refresh token.
     '''
     # Insert token into database
-    db.tokens.insert_one(refreshToken.dict())
+    db.tokens.insert_one(refreshToken.model_dump())
 
 
 def is_blacklisted(refreshToken: RefreshTokenPayload, db: Database):

@@ -35,7 +35,7 @@ def create_new_member(request: Request, newMember: MemberInput):
         'penalty': 0
     }
 
-    member = newMember.dict()
+    member = newMember.model_dump()
     member.update(additionalFields)
     # Create user object
     db.members.insert_one(member)
@@ -62,7 +62,7 @@ def get_member_associated_with_token(request: Request, token: AccessTokenPayload
     currentMember = db.members.find_one({'id': UUID(token.user_id)})
     if not currentMember:
         raise HTTPException(404, "User could not be found")
-    return Member.parse_obj(currentMember)
+    return Member.model_validate(currentMember)
 
 
 @router.get('/{id}', response_model=Member, responses={404: {"model": None}}, dependencies=[Depends(validate_uuid)])
@@ -72,7 +72,7 @@ def get_member_by_id(request: Request, id: str, token: dict = Depends(authorize)
     member = db.members.find_one({'id': UUID(id)})
     if not member:
         raise HTTPException(404, 'Member not found')
-    return Member.parse_obj(member)
+    return Member.model_validate(member)
 
 @router.get('/email/{email}')
 def get_member_by_email(request: Request, email: EmailStr, token: AccessTokenPayload = Depends(authorize_admin)):
@@ -86,7 +86,7 @@ def get_member_by_email(request: Request, email: EmailStr, token: AccessTokenPay
 def get_all_members(request: Request, token: AccessTokenPayload = Depends(authorize_admin)):
     '''List all members objects'''
     db = get_database(request)
-    return [Member.parse_obj(m) for m in db.members.find()]
+    return [Member.model_validate(m) for m in db.members.find()]
 
 @router.post('/activate')
 def change_status(request: Request, token: AccessTokenPayload = Depends(authorize)):
@@ -96,7 +96,7 @@ def change_status(request: Request, token: AccessTokenPayload = Depends(authoriz
     if not member:
         raise HTTPException(404, 'Member not found')
 
-    member = MemberDB.parse_obj(member)
+    member = MemberDB.model_validate(member)
     if member.status == Status.active:
         raise HTTPException(400, "member already activated")
 
@@ -258,7 +258,7 @@ def update_member(request: Request, memberData: MemberUpdate, token: AccessToken
     if not member:
         raise HTTPException(404, "User not found")
 
-    values = memberData.dict()
+    values = memberData.model_dump()
     updateInfo = {}
     for key in values:
         if values[key]:

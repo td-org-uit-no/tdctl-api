@@ -16,7 +16,7 @@ def get_event_or_404(db, eid: str):
     if not event:
         raise HTTPException(404, "Event could not be found")
 
-    return EventDB.parse_obj(event).dict()
+    return EventDB.model_validate(event).model_dump()
 
 
 async def penalize(db, uid: UUID):

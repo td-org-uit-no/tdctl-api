@@ -49,7 +49,7 @@ def create_admin_user(request: Request, newAdmin: MemberInput, token: AccessToke
         'status': f'{Status.inactive}',
     }
 
-    admin = newAdmin.dict()
+    admin = newAdmin.model_dump()
     admin.update(additionalFields)
     # Create user object
     db.members.insert_one(admin)
@@ -65,7 +65,7 @@ def create_admin_user(request: Request, newAdmin: MemberInput, token: AccessToke
 def update_member(request: Request, id: str, memberData: AdminMemberUpdate, token: AccessTokenPayload = Depends(authorize_admin)):
     db = get_database(request)
 
-    values = memberData.dict()
+    values = memberData.model_dump()
     updateInfo = {}
     for key in values:
         if values[key] or values[key] == 0:

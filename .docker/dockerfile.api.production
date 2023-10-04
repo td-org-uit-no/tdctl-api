@@ -1,4 +1,4 @@
-FROM python:3.9 as Build
+FROM python:3.11 as Build
 
 # creates production user
 RUN useradd --create-home prod_user
