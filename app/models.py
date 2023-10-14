@@ -9,11 +9,16 @@ class Status(str, Enum):
     active = "active"
     inactive = "inactive"
 
+    def __str__(self):
+        return self.value
+
 class Role(str, Enum):
     admin = "admin"
     member = "member"
     unconfirmed = "unconfirmed"
 
+    def __str__(self):
+        return self.value
 
 class MailPayload(BaseModel):
     """
@@ -71,7 +76,7 @@ class MemberUpdate(BaseModel):
     classof: Optional[str] = None
     phone: Optional[str] = None
 
-class MemberDB(BaseModel):
+class MemberDB(BaseModel, use_enum_values=True):
     id: UUID4
     realName: str
     email: EmailStr
