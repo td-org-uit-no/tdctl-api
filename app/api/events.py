@@ -795,7 +795,7 @@ def create_registration_qr(request: Request, id: str, token: AccessTokenPayload 
     title = event['title']
     title_h = pdf.h * 0.05
     pdf.set_font('helvetica', size=26)
-    pdf.multi_cell(0, title_h, txt = title, align = 'C', max_line_height=title_h)
+    pdf.multi_cell(0, title_h, text = title, align = 'C', max_line_height=title_h)
 
     # Get width and heigh to display image
     w, h = img.size
@@ -809,7 +809,7 @@ def create_registration_qr(request: Request, id: str, token: AccessTokenPayload 
     # Add new line of text below the image
     pdf.set_xy(0, y + pdf_h + pdf.h * 0.05)
     pdf.set_font('helvetica', size=10)
-    pdf.cell(0, 20, txt=url, align='C')
+    pdf.cell(0, 20, text=url, align='C')
 
     # Save PDF
     pdf_path = f'{qr_path}/{event["eid"].hex}.pdf'
