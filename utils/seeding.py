@@ -7,7 +7,7 @@ from app.models import EventDB
 import json
 import os
 import shutil
-import random
+import random 
 
 
 # TODO fix imports so that the file can be added into the db folder
@@ -18,6 +18,49 @@ classof_list = ['2017', '2018', '2019', '2020', '2021', '2022']
 dates = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 16, 17, 18, 19, 20]
 date_weights = (20, 20, 15, 5, 5, 5, 5, 3, 2, 2, 2, 2, 2, 2, 4, 2, 2, 2)
 
+
+def seed_stats(db):
+    seed_unique_visits(db)
+    seed_page_visits(db)
+
+def seed_page_visits(db):
+    db.pageVisitLog.delete_many({})
+    now = datetime.now()
+    base = "/event"
+
+    event_ids = db.events.find({"eid": {"$exists": True}}, {"eid": 1, "_id": 0})
+    for event in event_ids:
+        for _ in range(0, random.randint(20, 150)):
+            ts = generate_random_ts(now)
+            db.pageVisitLog.insert_one({"timestamp": ts, "metaData": f"{base}/{event['eid']}"})
+
+    base = "/jobs"
+    job_ids = db.jobs.find({"id": {"$exists": True}}, {"id": 1, "_id": 0})
+    for job in job_ids:
+        for _ in range(0, random.randint(20, 150)):
+            ts = generate_random_ts(now)
+            db.pageVisitLog.insert_one({"timestamp": ts, "metaData": f"{base}/{job['id']}"})
+
+def generate_random_ts(base_date):
+    rand_day = random.randint(1, 100)
+    rand_hour = random.randint(0, 23)
+    rand_min = random.randint(0, 59)
+    return base_date - timedelta(days=rand_day, hours=rand_hour, minutes=rand_min)
+
+
+# clears all entries before seeding as its easier then checking between each day 
+# seeds unique visits for a year not including the current date
+def seed_unique_visits(db):
+    db.uniqueVisitLog.delete_many({})
+    now = datetime.now()
+    for i in range(0, 365):
+        new_date = now - timedelta(days=i)
+        # generates random ts in a day
+        for _ in range(0, random.randint(20, 100)):
+            rand_hour = random.randint(0, 23)
+            rand_min= random.randint(0, 59)
+            ts = new_date.replace(hour=rand_hour, minute=rand_min)
+            db.uniqueVisitLog.insert_one({"timestamp": ts})
 
 def seed_random_member(db, number):
     ''' seed a numbr of random users '''
@@ -139,7 +182,11 @@ def seed_jobs(db, seed_path):
 
 if __name__ == "__main__":
     db = get_db()
+    events_seed_path = f"{base_dir}/events.json"
+    jobs_seed_path = f"{base_dir}/jobs.json"
+
     seed_random_member(db, 10)
     seed_members(db, f"{base_dir}/members.json")
-    seed_events(db, f"{base_dir}/events.json")
-    seed_jobs(db, f"{base_dir}/jobs.json")
+    seed_events(db, events_seed_path)
+    seed_jobs(db, jobs_seed_path)
+    seed_stats(db)
