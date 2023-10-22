@@ -1,7 +1,7 @@
 from enum import Enum
-from typing import Literal, Optional, List
+from typing import Dict, Literal, Optional, List
 from pydantic import BaseModel, EmailStr, UUID4, create_model, field_validator
-from datetime import datetime
+from datetime import datetime, date
 
 from pydantic.fields import Field
 
@@ -262,3 +262,28 @@ class UpdateJob(BaseModel):
 
 class JobItem(JobItemPayload):
     id: UUID4
+
+
+class UniqueVisitsStructure(BaseModel):
+    entry_date: date
+    # bloom filter object
+    bloom_filter: bytes
+    timestamps: List[date]
+
+class PageVisitsStructure(BaseModel):
+    # tracks 
+    url_dict: Dict[str, int]
+
+class PageVisitStamp(BaseModel):
+    pass
+
+class PageVisit(BaseModel):
+    page: str
+
+class PageVisits(PageVisit):
+    start: date
+    end: date
+
+class Stats(BaseModel):
+    date: date
+
