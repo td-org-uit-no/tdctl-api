@@ -1,8 +1,10 @@
+from typing import Dict
 from fastapi import HTTPException
 from uuid import UUID
 from datetime import datetime
 
 from pymongo import UpdateOne
+from pymongo.collection import Collection
 
 from app.models import EventDB
 
@@ -95,3 +97,41 @@ async def penalize(db, uid: UUID):
 
         if not res:
             raise HTTPException(500)
+
+def get_uuid(id: str):
+    try:
+        return UUID(id)
+    except ValueError:
+        return None
+
+# get event title from path, can be extended to retrieve other fields
+def get_event_title_from_path(db, path):
+    id = get_uuid(path)
+    if not id:
+        return None
+    event = db.events.find_one({ 'eid': id })
+    return event["title"]
+
+# get job title from path, can be extended to retrieve other fields
+def get_job_title_from_path(db, path):
+    id = get_uuid(path)
+    if not id:
+        return None
+    job = db.jobs.find_one({ 'id': id })
+    return job["title"]
+
+# function for finding objects for the paths containing uuid
+# such as events and jobs 
+def find_object_title_from_path(path: str, db: Collection):
+    path_to_db = {
+        "event": get_event_title_from_path,
+        "jobs": get_job_title_from_path,
+    }
+    sub_paths = path.split("/")
+    for i, sub_path in enumerate(sub_paths):
+        if sub_path not in path_to_db:
+            continue
+        if i == len(sub_path) - 1:
+            return None
+        return path_to_db[sub_path](db, sub_paths[i+1])
+    return None
