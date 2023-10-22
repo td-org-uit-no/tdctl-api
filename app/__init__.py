@@ -1,6 +1,8 @@
 import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
+from app.api import stats
 from .config import config
 
 from .api import members, auth, events, admin, mail, jobs
@@ -27,6 +29,10 @@ def create_app():
         allow_headers=["*"],
     )
 
+    # Fetch config object
+    env = os.getenv('API_ENV', 'default')
+    app.config = config[env]
+
     # Routers
     app.include_router(members.router, prefix="/api/member", tags=['members'])
     app.include_router(auth.router, prefix="/api/auth", tags=['auth'])
@@ -34,10 +40,8 @@ def create_app():
     app.include_router(admin.router, prefix="/api/admin", tags=['admin'])
     app.include_router(mail.router, prefix="/api/mail", tags=['mail'])
     app.include_router(jobs.router, prefix="/api/jobs", tags=['job'])
-
-    # Fetch config object
-    env = os.getenv('API_ENV', 'default')
-    app.config = config[env]
+    # only visible in development
+    app.include_router(stats.router, prefix="/api/stats", tags=['stats'], include_in_schema=app.config!='production')
 
     setup_db(app)
     # Set tokens to expire at at "exp"
