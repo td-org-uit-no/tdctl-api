@@ -92,7 +92,7 @@ def delete_auth_cookies(response: Response):
 def create_token(user: MemberDB, config: Config):
     payload = {
         # Token lifetime
-        'exp': datetime.utcnow() + timedelta(days=0, minutes=10),
+        'exp': datetime.utcnow() + timedelta(days=0, hours=1),
         'iat': datetime.utcnow(),
         'user_id': user.id.hex,
         'role': user.role,
