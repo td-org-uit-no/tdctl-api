@@ -41,7 +41,7 @@ def create_app():
     app.include_router(mail.router, prefix="/api/mail", tags=['mail'])
     app.include_router(jobs.router, prefix="/api/jobs", tags=['job'])
     # only visible in development
-    app.include_router(stats.router, prefix="/api/stats", tags=['stats'], include_in_schema=app.config!='production')
+    app.include_router(stats.router, prefix="/api/stats", tags=['stats'], include_in_schema=app.config.ENV!='production')
 
     setup_db(app)
     # Set tokens to expire at at "exp"
