@@ -110,6 +110,8 @@ def get_event_title_from_path(db, path):
     if not id:
         return None
     event = db.events.find_one({ 'eid': id })
+    if not event:
+        return "Et slettet arrangement"
     return event["title"]
 
 # get job title from path, can be extended to retrieve other fields
@@ -118,6 +120,8 @@ def get_job_title_from_path(db, path):
     if not id:
         return None
     job = db.jobs.find_one({ 'id': id })
+    if not job:
+        return "En slettet stillingsultlysning"
     return job["title"]
 
 # function for finding objects for the paths containing uuid
