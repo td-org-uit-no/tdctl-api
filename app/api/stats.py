@@ -125,7 +125,12 @@ async def add_unique_member_visit(request: Request, background_task: BackgroundT
 
 def register_page_visit(db, page):
     ts = datetime.now()
-    res = db.pageVisitLog.insert_one({"timestamp": ts, "metaData": page, "visits": 1})
+
+    # don't track admin page visits
+    if "admin" in page:
+    # remove admin logs
+        return
+    res = db.pageVisitLog.insert_one({"timestamp": ts, "metaData": page})
     if not res:
         logging.error(f"could not insert visit on page: {page}")
 
