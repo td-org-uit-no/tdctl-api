@@ -194,6 +194,27 @@ def get_page_visits(request: Request, page: str, start: Optional[str] = None, en
 
     return add_continous_datapoints_to_log(visits, start_date, end_date, Interval.day)
 
+@router.get('/get-all-page-visits')
+def get_all_page_visits(request: Request, page: str, token: AccessTokenPayload = Depends(authorize_admin)):
+    db = get_database(request)
+    pipeline = [
+        {"$match": {"metaData": page}},
+        {"$group": {
+            "_id": "$metaData",
+            "count": {"$sum": 1}
+        }}
+    ]
+    res = db.pageVisitLog.aggregate(pipeline)
+
+    if res == None:
+        raise HTTPException(500, "Problems retrieving page from database")
+
+    page_visits_list = list(res)
+    if len(page_visits_list) == 0:
+        raise HTTPException(404, "Could not find page")
+    visits = page_visits_list[0]
+    return {"visits": visits["count"]}
+
 @router.get('/most_visited_pages_last_month')
 def get_most_visited_page(request: Request, token: AccessTokenPayload = Depends(authorize_admin)):
     db = get_database(request)
