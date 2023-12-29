@@ -174,7 +174,7 @@ def seed_jobs(db, seed_path):
             job["id"] = uuid4()
             job['start_date'] = datetime.now()
             job['published_date'] = datetime.now()
-            job["due_date"] = datetime.now()
+            job["due_date"] = datetime.now() + timedelta(days=7)
             list_of_jobs.append(job)
 
     db.jobs.insert_many(list_of_jobs)
