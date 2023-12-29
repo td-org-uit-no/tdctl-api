@@ -124,12 +124,14 @@ async def add_unique_member_visit(request: Request, background_task: BackgroundT
     return Response(status_code=200)
 
 def register_page_visit(db, page):
-    ts = datetime.now()
+    # keywords the api should not track 
+    untrackable_keywords = ["admin", "archive"]
 
-    # don't track admin page visits
-    if "admin" in page:
-    # remove admin logs
-        return
+    for keyword in untrackable_keywords:
+        if keyword in page:
+            return
+
+    ts = datetime.now()
     res = db.pageVisitLog.insert_one({"timestamp": ts, "metaData": page})
     if not res:
         logging.error(f"could not insert visit on page: {page}")
