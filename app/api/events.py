@@ -8,11 +8,11 @@ from pydantic import ValidationError
 from starlette.responses import FileResponse
 from starlette.background import BackgroundTasks
 from uuid import uuid4, UUID
-from app.utils.event_utils import event_has_started, event_starts_in, num_of_confirmed_participants, num_of_deprioritized_participants, should_penalize, valid_registration, validate_event_dates, validate_pos_update
+from app.utils.event_utils import *
 from app.utils.validation import validate_image_file_type, validate_uuid
 from ..auth_helpers import authorize, authorize_admin, optional_authentication
 from ..db import get_database, get_image_path, get_qr_path, get_export_path
-from ..models import Event, EventDB, AccessTokenPayload, EventInput, EventUpdate, EventUserView, JoinEventPayload, Participant, ParticipantPosUpdate, Role, SetAttendancePayload
+from ..models import *
 from .utils import get_event_or_404, penalize
 import pandas as pd
 from .mail import send_mail
@@ -319,8 +319,8 @@ def update_event_options(request: Request, id: str, payload: JoinEventPayload, t
 
     # Create a dictionary with the payload
     values = payload.model_dump(exclude_unset=True)
-    update_dict = {f"participants.$.{
-        key}": value for key, value in values.items()}
+    update_dict = {f"""participants.$.{
+        key}""": value for key, value in values.items()}
 
     # Update db field
     res = db.events.update_one(
@@ -550,8 +550,22 @@ async def reorder_participants(request: Request, id: str, position_update: Parti
 
         return Response(status_code=200)
 
+
+@router.get('/{id}/confirm-message', dependencies=[Depends(validate_uuid)])
+async def get_confirmation_message(request: Request, id: str, token: AccessTokenPayload = Depends(authorize_admin)):
+    db = get_database(request)
+    event = get_event_or_404(db, id)
+
+    try:
+        content = get_default_confirmation(event)
+        return {'message': content}
+    except FileNotFoundError:
+        raise HTTPException(500, "Error fetching default confirm message")
+
+
+
 @router.post('/{id}/confirm', dependencies=[Depends(validate_uuid)])
-async def confirmation(request: Request, id: str, token: AccessTokenPayload = Depends(authorize_admin)):
+async def confirmation(request: Request, id: str, m: EventConfirmMessage, token: AccessTokenPayload = Depends(authorize_admin)):
     async with lock:
         db = get_database(request)
         event = get_event_or_404(db, id)
@@ -569,10 +583,12 @@ async def confirmation(request: Request, id: str, token: AccessTokenPayload = De
             raise HTTPException(
                 400, "Cannot send confirmation to a unpublished event")
 
-        # if users cannot join confirmations cannot be sent out
         if not valid_registration(event["registrationOpeningDate"]):
             raise HTTPException(
                 400, "Cannot send confirmations before registration is opened")
+
+        if m.msg != None and len(m.msg) > 5000:
+            raise HTTPException(400, "Email message is too long")
 
         result = db.events.find_one_and_update(
             {'eid': UUID(id)},
@@ -616,24 +632,18 @@ async def confirmation(request: Request, id: str, token: AccessTokenPayload = De
             raise HTTPException(
                 500, "Unexpected error when updating participants")
 
+        # Use default confirmation email if no message is supplied
+        content = m.msg if m.msg != None else get_default_confirmation(event)
+
         # Send email to all participants
         if request.app.config.ENV == 'production':
-            with open("./app/assets/mails/event_confirmation.txt", 'r') as mail_content:
-                content = mail_content.read().replace(
-                    "$EVENT_NAME$", event['title'])
-                content = content.replace(
-                    "$DATE$", event['date'].strftime("%d %B, %Y"))
-                content = content.replace(
-                    "$TIME$", event['date'].strftime("%H:%M:%S"))
-                content = content.replace("$LOCATION$", event['address'])
-                # send mail individual
-                for mail in mailingList:
-                    confirmation_email = MailPayload(
-                        to=[mail],
-                        subject=f"Bekreftelse {event['title']}",
-                        content=content,
-                    )
-                    send_mail(confirmation_email)
+            for mail in mailingList:
+                confirmation_email = MailPayload(
+                    to=[mail],
+                    subject=f"Bekreftelse {event['title']}",
+                    content=content,
+                )
+                send_mail(confirmation_email)
 
         return Response(status_code=200)
 

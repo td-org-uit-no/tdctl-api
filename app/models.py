@@ -5,12 +5,14 @@ from datetime import datetime, date
 
 from pydantic.fields import Field
 
+
 class Status(str, Enum):
     active = "active"
     inactive = "inactive"
 
     def __str__(self):
         return self.value
+
 
 class Role(str, Enum):
     admin = "admin"
@@ -19,6 +21,7 @@ class Role(str, Enum):
 
     def __str__(self):
         return self.value
+
 
 class MailPayload(BaseModel):
     """
@@ -36,6 +39,7 @@ class MailPayload(BaseModel):
     content: str
     to: List[EmailStr]
     sent_by: str = "no-reply@td-uit.no"
+
 
 class AccessTokenPayload(BaseModel):
     exp: int
@@ -60,6 +64,7 @@ class MemberInput(BaseModel):
     graduated: bool
     phone: Optional[str] = None
 
+
 class AdminMemberUpdate(BaseModel):
     realName: Optional[str] = None
     role: Optional[Role] = None
@@ -75,6 +80,7 @@ class MemberUpdate(BaseModel):
     email: Optional[EmailStr] = None
     classof: Optional[str] = None
     phone: Optional[str] = None
+
 
 class MemberDB(BaseModel, use_enum_values=True):
     id: UUID4
@@ -137,7 +143,8 @@ class Participant(BaseModel):
 
 
 class ParticipantPosUpdate(BaseModel):
-    updateList: List[create_model('ParticipantPosUpdate', id=(UUID4, ...), pos=(int, ...))]
+    updateList: List[create_model(
+        'ParticipantPosUpdate', id=(UUID4, ...), pos=(int, ...))]
 
 
 class EventInput(BaseModel):
@@ -190,6 +197,9 @@ class EventUpdate(BaseModel):
     confirmed: Optional[bool] = None
 
 
+class EventConfirmMessage(BaseModel):
+    msg: Optional[str] = None
+
 class EventDB(Event):
     participants: List[Participant]
 
@@ -227,7 +237,7 @@ class JoinEventPayload(BaseModel):
 class PenaltyInput(BaseModel):
     penalty: int = Field(
         ge=0, description="Penalty must be larger or equal to 0")
-    
+
 
 class SetAttendancePayload(BaseModel):
     member_id: Optional[str] = None
@@ -247,6 +257,7 @@ class JobItemPayload(BaseModel):
     start_date: Optional[datetime] = None
     due_date: Optional[datetime] = None
 
+
 class UpdateJob(BaseModel):
     company: Optional[str] = None
     title: Optional[str] = None
@@ -260,6 +271,7 @@ class UpdateJob(BaseModel):
     start_date: Optional[datetime] = None
     due_date: Optional[datetime] = None
 
+
 class JobItem(JobItemPayload):
     id: UUID4
 
@@ -270,20 +282,24 @@ class UniqueVisitsStructure(BaseModel):
     bloom_filter: bytes
     timestamps: List[date]
 
+
 class PageVisitsStructure(BaseModel):
-    # tracks 
+    # tracks
     url_dict: Dict[str, int]
+
 
 class PageVisitStamp(BaseModel):
     pass
 
+
 class PageVisit(BaseModel):
     page: str
+
 
 class PageVisits(PageVisit):
     start: date
     end: date
 
+
 class Stats(BaseModel):
     date: date
-

@@ -3,15 +3,20 @@ from uuid import UUID
 from fastapi import HTTPException
 from datetime import datetime, timedelta
 
+
 def validate_registartion_opening_time(event_date, opening_date):
     try:
         # registration Opening Time are defined as days hours:minutes before the event starts
-        opening_date = datetime.strptime(str(opening_date), "%Y-%m-%d %H:%M:%S")
+        opening_date = datetime.strptime(
+            str(opening_date), "%Y-%m-%d %H:%M:%S")
     except ValueError:
-        raise HTTPException(400, "Invalid date format for when registration is opening")
+        raise HTTPException(
+            400, "Invalid date format for when registration is opening")
     if opening_date >= event_date:
-        raise HTTPException(400, "Registration date must be before event start")
+        raise HTTPException(
+            400, "Registration date must be before event start")
     return opening_date
+
 
 def validate_event_dates(event):
     try:
@@ -23,10 +28,12 @@ def validate_event_dates(event):
         raise HTTPException(400, "Invalid date")
 
     if event.registrationOpeningDate != None:
-        validate_registartion_opening_time(event.date, event.registrationOpeningDate)
+        validate_registartion_opening_time(
+            event.date, event.registrationOpeningDate)
 
-# validates if the cancellation time is inside the acceptable time frame
+
 def validate_cancellation_time(start_date):
+    """ validates if the cancellation time is inside the acceptable time frame """
     cancellation_threshold = 24
     now = datetime.now()
     try:
@@ -35,7 +42,8 @@ def validate_cancellation_time(start_date):
         diff = abs(start_date-date)
     except ValueError:
         return False
-    return diff>=timedelta(hours=cancellation_threshold)
+    return diff >= timedelta(hours=cancellation_threshold)
+
 
 def should_penalize(event, user_id):
     already_penalized = user_id in event["registeredPenalties"]
@@ -54,26 +62,31 @@ def should_penalize(event, user_id):
                 return True
     return False
 
+
 def valid_registration(opening_date):
     # non specified opening date means registration is open
     if opening_date == None:
         return True
     try:
         # validates format
-        registration_start = datetime.strptime(str(opening_date), "%Y-%m-%d %H:%M:%S")
+        registration_start = datetime.strptime(
+            str(opening_date), "%Y-%m-%d %H:%M:%S")
     except ValueError:
         # sets registration open if field is malformed
         return True
-    return datetime.now()>registration_start
+    return datetime.now() > registration_start
 
-# validates position reorder input
-#   - id:
-#     - all participants in reorder list is already joined the event
-#   - pos
-#     - validates that all pos arguments are valid i.e between 0 and len(participants)
+
 def validate_pos_update(participants, updateList):
+    """
+    Validates position reorder input
+    - id:
+        - all participants in reorder list have already joined the event
+    - pos
+        - all pos arguments are valid i.e. between 0 and len(participants)
+    """
     valid_args = list(range(0, len(participants)))
-    joined_ids = [ p["id"] for p in participants ]
+    joined_ids = [p["id"] for p in participants]
     for p in updateList:
         try:
             valid_args.remove(p.pos)
@@ -82,14 +95,16 @@ def validate_pos_update(participants, updateList):
             return False
     return len(valid_args) == 0 and len(joined_ids) == 0
 
+
 def event_has_started(event):
-    try :
+    try:
         start_date = datetime.strptime(str(event["date"]), "%Y-%m-%d %H:%M:%S")
-        current_time = datetime.now() 
+        current_time = datetime.now()
         return current_time > start_date
     except ValueError:
         return True
-    
+
+
 def event_starts_in(event, dt):
     """ 
     Return whether event has started, calculated with the given
@@ -106,6 +121,18 @@ def event_starts_in(event, dt):
 def num_of_deprioritized_participants(participants):
     return sum(p["penalty"] > 1 for p in participants)
 
+
 def num_of_confirmed_participants(participants):
     return sum(p["confirmed"] == True for p in participants)
 
+
+def get_default_confirmation(event):
+    with open("./app/assets/mails/event_confirmation.txt", 'r') as mail_content:
+        content = mail_content.read().replace(
+            "$EVENT_NAME$", event['title'])
+        content = content.replace(
+            "$DATE$", event['date'].strftime("%d %B, %Y"))
+        content = content.replace("$TIME$", event['date'].strftime("%H:%M"))
+        content = content.replace("$LOCATION$", event['address'])
+
+        return content
