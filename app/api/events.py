@@ -26,6 +26,7 @@ from fpdf import FPDF
 router = APIRouter()
 lock = asyncio.Lock()
 
+
 @router.post('/')
 def create_event(request: Request, newEvent: EventInput, token: AccessTokenPayload = Depends(authorize_admin)):
     # TODO better format handling and date date-time handling
@@ -92,6 +93,7 @@ def get_upcoming_events(request: Request, token: AccessTokenPayload = Depends(op
 
     return [Event.model_validate(event) for event in upcoming_events]
 
+
 @router.get('/past-events')
 def get_past_events(request: Request, token: AccessTokenPayload = Depends(optional_authentication)):
     """ Get last 10 events that have passed """
@@ -102,7 +104,6 @@ def get_past_events(request: Request, token: AccessTokenPayload = Depends(option
     now = datetime.now()
     date_str = now.strftime("%Y-%m-%d %H:%M:%S")
     date = datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S")
-
 
     # Apply search filter according to role
     search_filter = {
@@ -121,7 +122,7 @@ def get_past_events(request: Request, token: AccessTokenPayload = Depends(option
 
     if res == []:
         raise HTTPException(404, "No past events found")
-    
+
     if not res:
         raise HTTPException(500)
 
@@ -143,7 +144,6 @@ def get_joined_events(request: Request, token: AccessTokenPayload = Depends(auth
         date = datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S")
     except ValueError:
         raise HTTPException(500, "Problem handling date format")
-    
 
     search_filter = {'date': {"$gt": date}}
 
@@ -284,7 +284,7 @@ def get_event_options(request: Request, id: str, token: AccessTokenPayload = Dep
     # Get event (if user is joined)
     user_event = db.events.find_one({"eid": event["eid"]}, {"participants": {
         "$elemMatch": {"id": UUID(token.user_id)}}})
-    
+
     # Check whether user exists in event
     if not user_event or 'participants' not in user_event:
         raise HTTPException(400, "User not joined event!")
@@ -305,29 +305,30 @@ def update_event_options(request: Request, id: str, payload: JoinEventPayload, t
     # Get event (if user is joined)
     user_event = db.events.find_one({"eid": event["eid"]}, {"participants": {
         "$elemMatch": {"id": UUID(token.user_id)}}})
-    
+
     # Check whether user exists in event
     if not user_event or 'participants' not in user_event:
         raise HTTPException(400, "User not joined event!")
-    
+
     # Can validate whether payload entries are
     # actually applicable for event here
 
-    # Cannot update options for confirmed event   
+    # Cannot update options for confirmed event
     if event.get('confirmed'):
         raise HTTPException(400, "Cannot update options for confirmed event")
 
     # Create a dictionary with the payload
     values = payload.model_dump(exclude_unset=True)
-    update_dict = {f"participants.$.{key}": value for key, value in values.items()}
-    
+    update_dict = {f"participants.$.{
+        key}": value for key, value in values.items()}
+
     # Update db field
-    res = db.events.update_one({"eid": event["eid"], "participants.id": member["id"]}, {"$set": update_dict})
+    res = db.events.update_one(
+        {"eid": event["eid"], "participants.id": member["id"]}, {"$set": update_dict})
 
     # Return error if user was not in event
     if not res:
         raise HTTPException(500, "Could not find user in event")
-    
 
 
 @router.post('/{id}/join', dependencies=[Depends(validate_uuid)])
@@ -378,12 +379,12 @@ def join_event(request: Request, id: str, payload: JoinEventPayload, token: Acce
         pos -= num_of_deprioritized_participants(event["participants"])
 
     db.events.update_one(
-        {'eid': event['eid']}, 
+        {'eid': event['eid']},
         {"$push": {
-            "participants": { 
-                "$each": [participant.model_dump()], 
+            "participants": {
+                "$each": [participant.model_dump()],
                 "$position": pos}
-            }
+        }
         })
 
     return Response(status_code=200)
@@ -448,7 +449,7 @@ def is_joined_event(request: Request, id: str, token: AccessTokenPayload = Depen
         return {'joined': True}
     except KeyError:
         return {'joined': False}
-    
+
 
 @router.get('/{id}/confirmed', dependencies=[Depends(validate_uuid)])
 def is_confirmed(request: Request, id: str, token: AccessTokenPayload = Depends(authorize)):
@@ -459,18 +460,18 @@ def is_confirmed(request: Request, id: str, token: AccessTokenPayload = Depends(
     # Get event (if user is joined)
     user_event = db.events.find_one({"eid": event['eid']}, {'participants': {
         '$elemMatch': {'id': UUID(token.user_id)}}})
-    
+
     # Check whether user exists in event
     if not user_event or 'participants' not in user_event:
         raise HTTPException(400, "User not joined event!")
-    
+
     userData = user_event['participants'][0]
     # Check whether event has been confirmed
     if not event.get('confirmed'):
         raise HTTPException(400, 'Event has not been confirmed yet')
-    
+
     # Return user data
-    return {'confirmed' : userData['confirmed']}
+    return {'confirmed': userData['confirmed']}
 
 
 @router.delete('/{id}/removeParticipant/{uid}', dependencies=[Depends(validate_uuid)])
@@ -498,8 +499,9 @@ def remove_participant(request: Request, id: str, uid: str, token: AccessTokenPa
 
     return Response(status_code=200)
 
+
 @router.put('/{id}/updateParticipantsOrder/', dependencies=[Depends(validate_uuid)])
-async def reorder_participants(request: Request, id:str, position_update: ParticipantPosUpdate, token: AccessTokenPayload = Depends(authorize_admin)):
+async def reorder_participants(request: Request, id: str, position_update: ParticipantPosUpdate, token: AccessTokenPayload = Depends(authorize_admin)):
     # blocks all request meaning no changes to the event when reordering
     # TODO find a more scaleable solution
     async with lock:
@@ -508,10 +510,11 @@ async def reorder_participants(request: Request, id:str, position_update: Partic
         participants = event["participants"]
         num_penalties = num_of_deprioritized_participants(participants)
         # start index of where penalized user should be
-        pen_start_pos =  len(participants) - 1 - num_penalties
+        pen_start_pos = len(participants) - 1 - num_penalties
 
         if not validate_pos_update(participants, position_update.updateList):
-            raise HTTPException(400, "Not valid: got invalid or outdated participant list")
+            raise HTTPException(
+                400, "Not valid: got invalid or outdated participant list")
 
         for participant in position_update.updateList:
             participant = participant.model_dump()
@@ -520,7 +523,8 @@ async def reorder_participants(request: Request, id:str, position_update: Partic
                     new_pos = participant["pos"]
                     # Checks if a penalized member is moved in front of a non penalized member
                     if p["penalty"] >= 2 and new_pos <= pen_start_pos:
-                        raise HTTPException(400, "User with penalty can't be rearranged")
+                        raise HTTPException(
+                            400, "User with penalty can't be rearranged")
 
                     # no need to swap same index
                     if new_pos == i:
@@ -534,12 +538,15 @@ async def reorder_participants(request: Request, id:str, position_update: Partic
                 # ensure fields exist
                 p = Participant.model_validate(p).model_dump()
                 if p["confirmed"] and i >= event["maxParticipants"]:
-                   raise HTTPException(400, "Confirmed user cannot be moved to a non confirmed spot") 
+                    raise HTTPException(
+                        400, "Confirmed user cannot be moved to a non confirmed spot")
 
-        res = db.events.find_one_and_update({'eid': event["eid"]}, {"$set": { "participants": participants}})
+        res = db.events.find_one_and_update(
+            {'eid': event["eid"]}, {"$set": {"participants": participants}})
 
         if res == None:
-            HTTPException(500, "Unexpected error when updating participants list")
+            HTTPException(
+                500, "Unexpected error when updating participants list")
 
         return Response(status_code=200)
 
@@ -551,17 +558,21 @@ async def confirmation(request: Request, id: str, token: AccessTokenPayload = De
         num_confs = num_of_confirmed_participants(event["participants"])
 
         if event["bindingRegistration"] == False:
-            raise HTTPException(400, "Events without bindingRegistration should not send out confirmations")
+            raise HTTPException(
+                400, "Events without bindingRegistration should not send out confirmations")
 
         if event_has_started(event):
-            raise HTTPException(400, "Cannot send confirmation after event start")
+            raise HTTPException(
+                400, "Cannot send confirmation after event start")
 
         if event["public"] == False:
-            raise HTTPException(400, "Cannot send confirmation to a unpublished event")
+            raise HTTPException(
+                400, "Cannot send confirmation to a unpublished event")
 
         # if users cannot join confirmations cannot be sent out
         if not valid_registration(event["registrationOpeningDate"]):
-            raise HTTPException(400, "Cannot send confirmations before registration is opened")
+            raise HTTPException(
+                400, "Cannot send confirmations before registration is opened")
 
         result = db.events.find_one_and_update(
             {'eid': UUID(id)},
@@ -571,14 +582,15 @@ async def confirmation(request: Request, id: str, token: AccessTokenPayload = De
             raise HTTPException(500, "Unexpected error when updating event")
 
         # all users joined gets confirmed if maxParticipants is not set
-        # maxIdx-> which array position is 
+        # maxIdx-> which array position is
         maxIdx = len(event["participants"])
         if event["maxParticipants"] != None:
             maxIdx = event["maxParticipants"]
 
         confirmationPositions = maxIdx - num_confs
         if confirmationPositions == 0:
-            raise HTTPException(400, "All participants have received confirmation ")
+            raise HTTPException(
+                400, "All participants have received confirmation ")
         # Aggregate all participants emails to send confirmation email
         # doesn't needs to filter out penalty < 2 as these should be at the bottom of the list
         # includeArrayIndex preserves the original position making sure the aggregation always gets returned in correct order
@@ -594,14 +606,15 @@ async def confirmation(request: Request, id: str, token: AccessTokenPayload = De
         confirmedParticipants = db.events.aggregate(pipeline)
 
         mailingList = [p['_id'] for p in confirmedParticipants]
-        # tags participants with confirmed 
+        # tags participants with confirmed
         result = db.events.update_many(
-                {"eid": event["eid"]}, 
-                {"$set": {"participants.$[element].confirmed": True}}, 
-                array_filters=[{"element.email": {"$in": mailingList}}],
-            )
+            {"eid": event["eid"]},
+            {"$set": {"participants.$[element].confirmed": True}},
+            array_filters=[{"element.email": {"$in": mailingList}}],
+        )
         if not result:
-            raise HTTPException(500, "Unexpected error when updating participants")
+            raise HTTPException(
+                500, "Unexpected error when updating participants")
 
         # Send email to all participants
         if request.app.config.ENV == 'production':
@@ -610,7 +623,8 @@ async def confirmation(request: Request, id: str, token: AccessTokenPayload = De
                     "$EVENT_NAME$", event['title'])
                 content = content.replace(
                     "$DATE$", event['date'].strftime("%d %B, %Y"))
-                content = content.replace("$TIME$", event['date'].strftime("%H:%M:%S"))
+                content = content.replace(
+                    "$TIME$", event['date'].strftime("%H:%M:%S"))
                 content = content.replace("$LOCATION$", event['address'])
                 # send mail individual
                 for mail in mailingList:
@@ -622,7 +636,7 @@ async def confirmation(request: Request, id: str, token: AccessTokenPayload = De
                     send_mail(confirmation_email)
 
         return Response(status_code=200)
-    
+
 
 @router.put('/{id}/register', dependencies=[Depends(validate_uuid)])
 def update_attendance(request: Request, id: str, payload: SetAttendancePayload, token: AccessTokenPayload = Depends(authorize)):
@@ -654,19 +668,19 @@ def update_attendance(request: Request, id: str, payload: SetAttendancePayload, 
     # Verify member is valid
     if not member:
         raise HTTPException(404, "User could not be found")
-    
+
     # Non admin cannot register long before event start
     if not isAdmin and not event_starts_in(event, 1):
         raise HTTPException(403, "Cannot register attendance yet")
-    
+
     # Get participant entry for event with member
     user_event = db.events.find_one({"eid": event["eid"]}, {"participants": {
         "$elemMatch": {"id": member["id"]}}})
-    
+
     # Verify user is joined event
     if not user_event or 'participants' not in user_event:
         raise HTTPException(400, "User not joined event")
-    
+
     # Update attendance
     res = db.events.update_one(
         {'eid': event['eid'], 'participants': {
@@ -677,9 +691,9 @@ def update_attendance(request: Request, id: str, payload: SetAttendancePayload, 
 
     if not res:
         raise HTTPException(500)
-    
+
     return Response(status_code=200)
-    
+
 
 @router.post('/{id}/register-absence', dependencies=[Depends(validate_uuid)])
 async def register_absence(request: Request, id: str, token: AccessTokenPayload = Depends(authorize_admin)):
@@ -689,13 +703,12 @@ async def register_absence(request: Request, id: str, token: AccessTokenPayload 
 
     if not event["bindingRegistration"]:
         raise HTTPException(400, "Cannot penalize on non-binding events")
-    
+
     if not event_has_started(event):
-        raise HTTPException(400, "Cannot penalize before event start") 
-    
+        raise HTTPException(400, "Cannot penalize before event start")
+
     if not event["confirmed"]:
         raise HTTPException(400, "Cannot penalize unconfirmed event")
-        
 
     # Aggregate all participants that are confirmed, but not attended,
     # and group them by ids
@@ -712,10 +725,10 @@ async def register_absence(request: Request, id: str, token: AccessTokenPayload 
 
     if not absent or len(absent) == 0:
         raise HTTPException(400, "No members to penalize")
-    
+
     # Get ids
     absent_ids = [p["_id"] for p in absent]
-    
+
     # Get already penalized ids
     penalized_ids = event["registeredPenalties"]
 
@@ -724,7 +737,6 @@ async def register_absence(request: Request, id: str, token: AccessTokenPayload 
     for m_id in absent_ids:
         if m_id not in penalized_ids:
             to_penalize.append(m_id)
-
 
     if len(to_penalize) == 0:
         raise HTTPException(400, "Members already penalized")
@@ -736,7 +748,7 @@ async def register_absence(request: Request, id: str, token: AccessTokenPayload 
         await penalize(db, m_id)
         # Add id to registeredPenalties on event
         updates.append(UpdateOne(
-            {"eid": event["eid"]}, 
+            {"eid": event["eid"]},
             {"$addToSet": {"registeredPenalties": m_id}}
         ))
 
@@ -745,9 +757,8 @@ async def register_absence(request: Request, id: str, token: AccessTokenPayload 
 
     if not res:
         raise HTTPException(500)
-    
-    return Response(status_code=200)
 
+    return Response(status_code=200)
 
 
 @router.post('/{id}/qr', dependencies=[Depends(validate_uuid)])
@@ -761,7 +772,6 @@ def create_registration_qr(request: Request, id: str, token: AccessTokenPayload 
     filepath = f'{get_qr_path(request)}/{event["eid"].hex}.pdf'
     if rid_created and os.path.exists(filepath):
         raise HTTPException(400, "Event QR already created")
-    
 
     # Generate new unique id for attendance registration
     # Only if rid has not yet been created
@@ -774,13 +784,13 @@ def create_registration_qr(request: Request, id: str, token: AccessTokenPayload 
 
     if not res:
         raise HTTPException(500)
-    
+
     # Create directory if not present
     path = get_qr_path(request)
     if not os.path.exists(path):
         os.makedirs(path)
 
-    # Generate qr code 
+    # Generate qr code
     url = f'https://td-uit.no/event/{register_id}/register/'
     img = qr.make(url)
     qr_path = path
@@ -795,7 +805,7 @@ def create_registration_qr(request: Request, id: str, token: AccessTokenPayload 
     title = event['title']
     title_h = pdf.h * 0.05
     pdf.set_font('helvetica', size=26)
-    pdf.multi_cell(0, title_h, text = title, align = 'C', max_line_height=title_h)
+    pdf.multi_cell(0, title_h, text=title, align='C', max_line_height=title_h)
 
     # Get width and heigh to display image
     w, h = img.size
@@ -804,7 +814,7 @@ def create_registration_qr(request: Request, id: str, token: AccessTokenPayload 
     y = title_h + pdf.h * 0.08
 
     # Add QR code
-    pdf.image(img_path, x = pdf.w * 0.1, y = y , w = pdf_w, h = pdf_h)
+    pdf.image(img_path, x=pdf.w * 0.1, y=y, w=pdf_w, h=pdf_h)
 
     # Add new line of text below the image
     pdf.set_xy(0, y + pdf_h + pdf.h * 0.05)
@@ -828,7 +838,7 @@ def get_registration_qr(request: Request, id: str, token: AccessTokenPayload = D
     """ Get qr code link to registration page of event """
     db = get_database(request)
     event = get_event_or_404(db, id)
-    
+
     if not event['register_id']:
         raise HTTPException(400, "Event not open for registration")
 
@@ -838,7 +848,7 @@ def get_registration_qr(request: Request, id: str, token: AccessTokenPayload = D
     # Send qr PDF
     headers = {'Content-Disposition': 'attachment; filename="QR.pdf"'}
     return FileResponse(path, headers=headers)
-    
+
 
 @router.get('/{id}/export', dependencies=[Depends(validate_uuid)])
 async def exportEvent(background_tasks: BackgroundTasks, request: Request, id: str, token: AccessTokenPayload = Depends(authorize_admin)):
@@ -855,8 +865,8 @@ async def exportEvent(background_tasks: BackgroundTasks, request: Request, id: s
     participants = [Participant(
         **p).model_copy().model_dump(exclude={'id'}) for p in event['participants']]
 
-    event_details = [{'Title': event['title'], 'date':event['date'], 'address':event['address'], 'price':event['price'],
-                      'maxParticipants':event['maxParticipants'], 'duration':event['duration'], 'transportation':str(event['transportation']), 'food':str(event['food'])}]
+    event_details = [{'Title': event['title'], 'date': event['date'], 'address': event['address'], 'price': event['price'],
+                      'maxParticipants': event['maxParticipants'], 'duration': event['duration'], 'transportation': str(event['transportation']), 'food': str(event['food'])}]
 
     event_header = [{event['title']}]
 
@@ -906,7 +916,8 @@ async def exportEvent(background_tasks: BackgroundTasks, request: Request, id: s
 
     # 0 indexed
     participant_list_start_pos = 14
-    accept_color_pair = (participants_accept_format, participants_accept_format2)
+    accept_color_pair = (participants_accept_format,
+                         participants_accept_format2)
     wait_color_pair = (participants_wait_format, participants_wait_format2)
     for col in range(0, len(participants)):
         current_row = participant_list_start_pos + col
@@ -915,7 +926,7 @@ async def exportEvent(background_tasks: BackgroundTasks, request: Request, id: s
             # set red color when user is in waiting list
             color_scheme = wait_color_pair
         # switch color version every other row
-        color_version = color_scheme[col%2]
+        color_version = color_scheme[col % 2]
         worksheet.set_row(current_row, current_row, cell_format=color_version)
 
     # Cleanup file created after request is done
