@@ -320,7 +320,7 @@ def test_update_event_options(client):
         'dietaryRestrictions'] == updateEventPayload['dietaryRestrictions']
 
     # Set event to confirmed
-    response = client.post(f'/api/event/{eid}/confirm')
+    response = client.post(f'/api/event/{eid}/confirm', json={"msg": None})
     assert response.status_code == 200
 
     # Should fail to update options
@@ -572,7 +572,7 @@ def test_is_confirmed(client):
     assert response.status_code == 400
 
     # Set event to confirmed
-    response = client.post(f'/api/event/{eid}/confirm')
+    response = client.post(f'/api/event/{eid}/confirm', json={"msg": None})
     assert response.status_code == 200
 
     # Should be confirmed
@@ -616,56 +616,81 @@ def test_export_event(client):
     assert response.status_code == 404
 
 
-@admin_required("/api/event/{uuid}/confirm", "post")
-def test_confirm_event(client):
+@admin_required("/api/event/{uuid}/confirm-message", "get")
+def test_confirm_message(client):
     eid = test_events[0]["eid"]
 
     client_login(client, admin_member["email"], admin_member["password"])
-    
+
+    response = client.get(f'/api/event/{eid}/confirm-message')
+    assert response.status_code == 200
+    body = response.json()
+    assert body['message'] != None
+
+    response = client.get(f'/api/event/{non_existing_eid}/confirm-message')
+    assert response.status_code == 404
+
+@admin_required("/api/event/{uuid}/confirm", "post")
+def test_confirm_event(client):
+    eid = test_events[0]["eid"]
+    payload = {"msg": "test message"}
+
+    client_login(client, admin_member["email"], admin_member["password"])
+
     # check confirmation is not allowed on finished events
-    response = client.post(f'/api/event/{eid}/confirm')
+    response = client.post(f'/api/event/{eid}/confirm', json=payload)
     assert response.status_code == 400
 
     # update to valid date but not public
     response = client.put(
-            f"/api/event/{eid}", json={"date": f"{future_time_str}", "maxParticipants": 1, "public": False})
+        f"/api/event/{eid}", json={"date": f"{future_time_str}", "maxParticipants": 1, "public": False})
     assert response.status_code == 200
 
-    response = client.post(f'/api/event/{eid}/confirm')
+    response = client.post(f'/api/event/{eid}/confirm', json=payload)
     assert response.status_code == 400
 
     # setup for confirmation on event who isn't open for registration
     response = client.put(
-            f"/api/event/{eid}", json={"public": True, "registrationOpeningDate": f"{future_time_str}"})
+        f"/api/event/{eid}", json={"public": True, "registrationOpeningDate": f"{future_time_str}"})
     assert response.status_code == 200
 
-    response = client.post(f'/api/event/{eid}/confirm')
+    response = client.post(f'/api/event/{eid}/confirm', json=payload)
     assert response.status_code == 400
 
     response = client.put(
-            f"/api/event/{eid}", json={"registrationOpeningDate": None})
+        f"/api/event/{eid}", json={"registrationOpeningDate": None})
     assert response.status_code == 200
 
     # check expected behavior
-    response = client.post(f'/api/event/{eid}/confirm')
+    response = client.post(f'/api/event/{eid}/confirm', json=payload)
     assert response.status_code == 200
 
     event = db.events.find_one({"eid": UUID(eid)})
-    assert event and num_of_confirmed_participants(event["participants"]) == event["maxParticipants"]
-    
-    response = client.post(f'/api/event/{eid}/confirm')
+    assert event and num_of_confirmed_participants(
+        event["participants"]) == event["maxParticipants"]
+
+    response = client.post(f'/api/event/{eid}/confirm', json=payload)
     # should get 400 when all participants have gotten their confirmation mail
     assert response.status_code == 400
+
+    response = client.put(
+        f"/api/event/{eid}", json={"maxParticipants": (event["maxParticipants"] + 1)})
+    assert response.status_code == 200
+
+    # should be able to confirm again when another unconfirmed participant is allowed
+    response = client.post(f'/api/event/{eid}/confirm', json=payload)
+    assert response.status_code == 200
 
     response = client.put(f"/api/event/{eid}", json={"maxParticipants": None})
     assert response.status_code == 200
 
-    response = client.post(f'/api/event/{eid}/confirm')
-    assert response.status_code == 200
+    # should not be required to supply custom email
+    response = client.post(f'/api/event/{eid}/confirm', json={"msg": None})
 
     event = db.events.find_one({"eid": UUID(eid)})
     # checks that all participants gets confirmation when there are no limit
-    assert event and num_of_confirmed_participants(event["participants"]) == len(event["participants"])
+    assert event and num_of_confirmed_participants(
+        event["participants"]) == len(event["participants"])
 
 
 @admin_required("/api/event/{uuid}/updateParticipantsOrder", "put")
@@ -760,7 +785,7 @@ def test_event_reorder(client):
         f"/api/event/{eid}", json={"maxParticipants": 1})
     assert response.status_code == 200
 
-    response = client.post(f'/api/event/{eid}/confirm')
+    response = client.post(f'/api/event/{eid}/confirm', json={"msg": None})
     assert response.status_code == 200
 
     # reorder a confirmed member to a non confirmed spot
@@ -894,7 +919,7 @@ def test_register_absence(client):
     assert response.status_code == 200
 
     # Now confirm event
-    response = client.post(f'/api/event/{eid}/confirm')
+    response = client.post(f'/api/event/{eid}/confirm', json={"msg": None})
     assert response.status_code == 200
 
     # Should not be able to register absence on future event
