@@ -200,6 +200,13 @@ class EventUpdate(BaseModel):
 class EventConfirmMessage(BaseModel):
     msg: Optional[str] = None
 
+
+class EventMailMessage(BaseModel):
+    subject: str
+    msg: str
+    confirmedOnly: Optional[bool] = False
+
+
 class EventDB(Event):
     participants: List[Participant]
 

@@ -563,6 +563,47 @@ async def get_confirmation_message(request: Request, id: str, token: AccessToken
         raise HTTPException(500, "Error fetching default confirm message")
 
 
+@router.post('/{id}/mail', dependencies=[Depends(validate_uuid)])
+async def send_notification_mail(request: Request, id: str, m: EventMailMessage, token: AccessTokenPayload = Depends(authorize_admin)):
+    db = get_database(request)
+    event = get_event_or_404(db, id)
+
+    if len(event["participants"]) == 0:
+        raise HTTPException(400, "No participants in event")
+
+    if m.confirmedOnly and num_of_confirmed_participants(event["participants"]) == 0:
+        raise HTTPException(400, "No confirmed participants in event")
+
+    if len(m.subject) > 50:
+        raise HTTPException(400, "Email subject is too long")
+
+    if len(m.msg) > 5000:
+        raise HTTPException(400, "Email message is too long")
+
+    pipeline = [
+        {"$match": {"eid": event["eid"]}},
+        {"$unwind": {"path": "$participants"}},
+        {"$group": {"_id": "$participants.email"}},
+    ]
+
+    # Only send mail to confirmed participants if specified
+    if m.confirmedOnly:
+        pipeline += [{"$match": {"participants.confirmed": True}}]
+
+    participantsToMail = db.events.aggregate(pipeline)
+    mailingList = [p["_id"] for p in participantsToMail]
+
+    if request.app.config.ENV == "production":
+        for addr in mailingList:
+            email = MailPayload(
+                to=[addr],
+                subject=[m.subject],
+                content=m.msg,
+            )
+            send_mail(email)
+
+    return Response(status_code=200)
+
 
 @router.post('/{id}/confirm', dependencies=[Depends(validate_uuid)])
 async def confirmation(request: Request, id: str, m: EventConfirmMessage, token: AccessTokenPayload = Depends(authorize_admin)):

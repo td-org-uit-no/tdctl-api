@@ -630,6 +630,52 @@ def test_confirm_message(client):
     response = client.get(f'/api/event/{non_existing_eid}/confirm-message')
     assert response.status_code == 404
 
+
+@admin_required("/api/event/{uuid}/mail", "post")
+def test_send_notification_mail(client):
+    eid = test_events[0]["eid"]
+
+    client_login(client, admin_member["email"], admin_member["password"])
+
+    payload = {'subject': 'test subject',
+               'msg': 'test msg', 'confirmedOnly': True}
+
+    response = client.post(f'/api/event/{non_existing_eid}/mail', json=payload)
+    assert response.status_code == 404
+
+    # Test confirmed only when none are confirmed
+    response = client.post(f'/api/event/{eid}/mail', json=payload)
+    assert response.status_code == 400
+
+    # Confirm and retry
+    response = client.put(
+        f'/api/event/{eid}', json={"date": f'{future_time_str}', 'maxParticipants': 1, 'public': True})
+    assert response.status_code == 200
+
+    response = client.post(
+        f'/api/event/{eid}/confirm', json={'msg': 'test message'})
+    assert response.status_code == 200
+
+    response = client.post(f'/api/event/{eid}/mail', json=payload)
+    assert response.status_code == 200
+
+    # Test sending to all
+    payload["confirmedOnly"] = False
+    response = client.post(f'/api/event/{eid}/mail', json=payload)
+    assert response.status_code == 200
+
+    # Too long subject
+    payload["subject"] = "a" * 51
+    response = client.post(f'/api/event/{eid}/mail', json=payload)
+    assert response.status_code == 400
+
+    # Too long message
+    payload["subject"] = "test"
+    payload["msg"] = "a" * 5001
+    response = client.post(f'/api/event/{eid}/mail', json=payload)
+    assert response.status_code == 400
+
+
 @admin_required("/api/event/{uuid}/confirm", "post")
 def test_confirm_event(client):
     eid = test_events[0]["eid"]
