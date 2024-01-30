@@ -2,6 +2,8 @@ from datetime import datetime
 from uuid import UUID
 from fastapi import HTTPException
 from datetime import datetime, timedelta
+from ..api.mail import send_mail
+from ..models import MailPayload
 
 
 def validate_registartion_opening_time(event_date, opening_date):
@@ -136,3 +138,16 @@ def get_default_confirmation(event):
         content = content.replace("$LOCATION$", event['address'])
 
         return content
+
+
+def send_emails(mailing_list, subject, content):
+    """
+    Send emails to addresses in mailing list with given subject and content.
+    """
+    for address in mailing_list:
+        email = MailPayload(
+            to=address,
+            subject=subject,
+            content=content
+        )
+        send_mail(email)
