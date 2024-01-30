@@ -1,12 +1,11 @@
 from datetime import datetime, timedelta
 import os
 import shutil
-from fastapi import APIRouter, Response, Request, HTTPException, Depends
+from fastapi import APIRouter, Response, Request, HTTPException, Depends, BackgroundTasks
 from fastapi.datastructures import UploadFile
 from fastapi.param_functions import File
 from pydantic import ValidationError
 from starlette.responses import FileResponse
-from starlette.background import BackgroundTasks
 from uuid import uuid4, UUID
 from app.utils.event_utils import *
 from app.utils.validation import validate_image_file_type, validate_uuid
@@ -564,7 +563,7 @@ async def get_confirmation_message(request: Request, id: str, token: AccessToken
 
 
 @router.post('/{id}/mail', dependencies=[Depends(validate_uuid)])
-async def send_notification_mail(request: Request, id: str, m: EventMailMessage, token: AccessTokenPayload = Depends(authorize_admin)):
+async def send_notification_mail(request: Request, id: str, m: EventMailMessage, background_tasks: BackgroundTasks, token: AccessTokenPayload = Depends(authorize_admin)):
     db = get_database(request)
     event = get_event_or_404(db, id)
 
@@ -594,19 +593,13 @@ async def send_notification_mail(request: Request, id: str, m: EventMailMessage,
     mailingList = [p["_id"] for p in participantsToMail]
 
     if request.app.config.ENV == "production":
-        for addr in mailingList:
-            email = MailPayload(
-                to=[addr],
-                subject=[m.subject],
-                content=m.msg,
-            )
-            send_mail(email)
+        background_tasks.add_task(send_emails, mailingList, m.subject, m.msg)
 
-    return Response(status_code=200)
+    return Response(status_code=202)
 
 
 @router.post('/{id}/confirm', dependencies=[Depends(validate_uuid)])
-async def confirmation(request: Request, id: str, m: EventConfirmMessage, token: AccessTokenPayload = Depends(authorize_admin)):
+async def confirmation(request: Request, id: str, m: EventConfirmMessage, background_tasks: BackgroundTasks, token: AccessTokenPayload = Depends(authorize_admin)):
     async with lock:
         db = get_database(request)
         event = get_event_or_404(db, id)
@@ -678,13 +671,8 @@ async def confirmation(request: Request, id: str, m: EventConfirmMessage, token:
 
         # Send email to all participants
         if request.app.config.ENV == 'production':
-            for mail in mailingList:
-                confirmation_email = MailPayload(
-                    to=[mail],
-                    subject=f"Bekreftelse {event['title']}",
-                    content=content,
-                )
-                send_mail(confirmation_email)
+            background_tasks.add_task(
+                send_emails, mailingList, f"Bekreftelse {event['title']}", content)
 
         return Response(status_code=200)
 

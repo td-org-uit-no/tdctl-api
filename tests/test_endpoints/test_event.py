@@ -657,12 +657,12 @@ def test_send_notification_mail(client):
     assert response.status_code == 200
 
     response = client.post(f'/api/event/{eid}/mail', json=payload)
-    assert response.status_code == 200
+    assert response.status_code == 202
 
     # Test sending to all
     payload["confirmedOnly"] = False
     response = client.post(f'/api/event/{eid}/mail', json=payload)
-    assert response.status_code == 200
+    assert response.status_code == 202
 
     # Too long subject
     payload["subject"] = "a" * 51
