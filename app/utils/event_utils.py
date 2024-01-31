@@ -146,7 +146,7 @@ def send_emails(mailing_list, subject, content):
     """
     for address in mailing_list:
         email = MailPayload(
-            to=address,
+            to=[address],
             subject=subject,
             content=content
         )
