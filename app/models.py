@@ -61,6 +61,7 @@ class MemberInput(BaseModel):
     email: EmailStr
     password: str
     classof: str
+    major: Optional[str] = None
     graduated: bool
     phone: Optional[str] = None
 
@@ -71,7 +72,8 @@ class AdminMemberUpdate(BaseModel):
     status: Optional[Status] = None
     email: Optional[EmailStr] = None
     classof: Optional[str] = None
-    phone: Optional[str] = None
+    major: Optional[str] = None
+    phone: Optional[str] = None 
     penalty: Optional[int] = None
 
 
@@ -79,6 +81,7 @@ class MemberUpdate(BaseModel):
     realName: Optional[str] = None
     email: Optional[EmailStr] = None
     classof: Optional[str] = None
+    major: Optional[str] = None
     phone: Optional[str] = None
 
 
@@ -88,6 +91,7 @@ class MemberDB(BaseModel, use_enum_values=True):
     email: EmailStr
     password: str
     classof: str
+    major: Optional[str] = None
     graduated: bool
     phone: Optional[str] = None
     role: Role
@@ -118,6 +122,7 @@ class Member(BaseModel):
     realName: str
     email: EmailStr
     classof: str
+    major: Optional[str] = None
     graduated: bool
     phone: Optional[str] = None
     role: Role
