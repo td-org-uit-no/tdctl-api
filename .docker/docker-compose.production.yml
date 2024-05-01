@@ -1,4 +1,3 @@
-version: "3.5"
 services:
   tdctl_api:
     image: ghcr.io/td-org-uit-no/tdctl-api/tdctl-api:latest
