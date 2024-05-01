@@ -35,6 +35,7 @@ class MailPayload(BaseModel):
     sent_by: str
         - Email that is to be marked as sender.
     """
+
     subject: str
     content: str
     to: List[EmailStr]
@@ -97,7 +98,7 @@ class MemberDB(BaseModel, use_enum_values=True):
 
     # sets role to unconfirmed if role is something else than the predefined roles
     # mode='before' makes this validation run before pydantic's model validator
-    @field_validator('role', mode='before')
+    @field_validator("role", mode="before")
     @classmethod
     def role_validator(cls, v):
         if v not in Role.__members__:
@@ -105,7 +106,7 @@ class MemberDB(BaseModel, use_enum_values=True):
         return v
 
     # sets role to inactive if status is something else than the predefined status
-    @field_validator('status', mode='before')
+    @field_validator("status", mode="before")
     @classmethod
     def status_validator(cls, v):
         if v not in Status.__members__:
@@ -143,8 +144,9 @@ class Participant(BaseModel):
 
 
 class ParticipantPosUpdate(BaseModel):
-    updateList: List[create_model(
-        'ParticipantPosUpdate', id=(UUID4, ...), pos=(int, ...))]
+    updateList: List[
+        create_model("ParticipantPosUpdate", id=(UUID4, ...), pos=(int, ...))
+    ]
 
 
 class EventInput(BaseModel):
@@ -242,8 +244,7 @@ class JoinEventPayload(BaseModel):
 
 
 class PenaltyInput(BaseModel):
-    penalty: int = Field(
-        ge=0, description="Penalty must be larger or equal to 0")
+    penalty: int = Field(ge=0, description="Penalty must be larger or equal to 0")
 
 
 class SetAttendancePayload(BaseModel):
@@ -310,3 +311,12 @@ class PageVisits(PageVisit):
 
 class Stats(BaseModel):
     date: date
+
+
+class KioskSuggestionPayload(BaseModel):
+    product: str
+
+
+class KioskSuggestion(KioskSuggestionPayload):
+    member: Member
+    timestamp: datetime
