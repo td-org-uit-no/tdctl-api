@@ -1,7 +1,6 @@
 from app.db import get_test_db
 from tests.conftest import client_login
 from tests.users import regular_member, admin_member
-from app.db import get_test_db
 from uuid import UUID
 from tests.utils.authentication import admin_required
 
@@ -25,7 +24,6 @@ new_job = {
 
 @admin_required("/api/jobs/", "post")
 def test_create_job(client):
-
     client_login(client, regular_member["email"], regular_member["password"])
     response = client.post("/api/jobs/", json=new_job)
     assert response.status_code == 403
@@ -49,9 +47,9 @@ def test_get_job(client):
 
     # Validate the new job can be accessed
     response = response.json()
-    job = client.get("/api/jobs/"+response["id"])
+    job = client.get("/api/jobs/" + response["id"])
     assert job.status_code == 200
-    assert UUID(job.json()["id"]) == UUID(response['id'])
+    assert UUID(job.json()["id"]) == UUID(response["id"])
 
 
 @admin_required("/api/jobs/{uuid}/", "delete")
@@ -62,10 +60,10 @@ def test_delete_job(client):
     assert response.status_code == 200
     response = response.json()
 
-    delResponse = client.delete("/api/jobs/"+response["id"])
+    delResponse = client.delete("/api/jobs/" + response["id"])
     assert delResponse.status_code == 200
 
-    val_delete = client.delete("/api/jobs/"+response["id"])
+    val_delete = client.delete("/api/jobs/" + response["id"])
     assert val_delete.status_code == 400
 
 
@@ -80,10 +78,9 @@ def test_update_job(client):
     new_job_update = new_job.copy()
     new_job_update["title"] = "New Title"
 
-    update_response = client.put(
-        "/api/jobs/"+response["id"], json=new_job_update)
+    update_response = client.put("/api/jobs/" + response["id"], json=new_job_update)
     assert update_response.status_code == 200
 
-    _test = client.get("/api/jobs/"+response["id"])
+    _test = client.get("/api/jobs/" + response["id"])
 
     assert _test.json()["title"] == new_job_update["title"]
