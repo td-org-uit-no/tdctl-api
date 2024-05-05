@@ -1,7 +1,11 @@
 from datetime import datetime
-from fastapi import APIRouter, HTTPException, Response, Request, Depends
+from uuid import UUID, uuid4
+
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
+
 from app.auth_helpers import authorize, authorize_admin, authorize_kiosk_admin
 from app.db import get_database
+
 from ..models import AccessTokenPayload, KioskSuggestionPayload, Role
 
 router = APIRouter()
@@ -17,11 +21,13 @@ def add_suggestion(
 
     member = db.members.find_one({"id": UUID(token.user_id)})
     if member is None:
-        raise HTTPException(500)
+        raise HTTPException(404)
 
+    id = uuid4()
     formatted_product = newSuggestion.product.lower().capitalize()
 
     suggestion = {
+        "id": id,
         "product": formatted_product,
         "member": member,
         "timestamp": datetime.now(),
@@ -59,3 +65,19 @@ def get_suggestions(
         raise HTTPException(404, "No kiosk suggestions found")
 
     return ret
+
+
+@router.delete("/suggestion/{id}")
+def delete_suggestion(
+    request: Request,
+    id: str,
+    token: AccessTokenPayload = Depends(authorize_admin),
+):
+    db = get_database(request)
+
+    res = db.kioskSuggestions.find_one_and_delete({"id": UUID(id)})
+
+    if not res:
+        raise HTTPException(404, "Suggestion not found")
+
+    return Response(status_code=200)
