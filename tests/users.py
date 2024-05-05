@@ -18,3 +18,7 @@ admin_member = {
     "password": "&AdminTester1"
 }
 
+kiosk_admin = {
+    "email": "kiosk@mail.com",
+    "password": "Kiosk!23"
+}
