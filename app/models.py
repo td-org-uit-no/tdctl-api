@@ -18,6 +18,7 @@ class Role(str, Enum):
     admin = "admin"
     member = "member"
     unconfirmed = "unconfirmed"
+    kiosk_admin = "kiosk_admin"
 
     def __str__(self):
         return self.value
@@ -318,5 +319,6 @@ class KioskSuggestionPayload(BaseModel):
 
 
 class KioskSuggestion(KioskSuggestionPayload):
+    id: str
     member: Member
     timestamp: datetime

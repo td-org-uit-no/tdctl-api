@@ -1,9 +1,8 @@
 from datetime import datetime
 from fastapi import APIRouter, HTTPException, Response, Request, Depends
-from app.auth_helpers import authorize, authorize_admin
+from app.auth_helpers import authorize, authorize_admin, authorize_kiosk_admin
 from app.db import get_database
-from ..models import AccessTokenPayload, KioskSuggestionPayload
-from uuid import UUID
+from ..models import AccessTokenPayload, KioskSuggestionPayload, Role
 
 router = APIRouter()
 
@@ -35,17 +34,22 @@ def add_suggestion(
 
 @router.get("/suggestions")
 def get_suggestions(
-    request: Request, token: AccessTokenPayload = Depends(authorize_admin)
+    request: Request, token: AccessTokenPayload = Depends(authorize_kiosk_admin)
 ):
     db = get_database(request)
+
+    # Kiosk admin has access to list, but only admin should get member names
+    isAdmin = token.role == Role.admin
 
     # Return all suggestions in collection
     suggestions = db.kioskSuggestions.aggregate([{"$sort": {"date": -1}}])
 
+    # Only return username to admins
     ret = [
         {
+            "id": s["id"],
             "product": s["product"],
-            "username": s["member"].get("realName", None),
+            "username": s["member"].get("realName", None) if isAdmin else "-",
             "timestamp": s["timestamp"],
         }
         for s in suggestions
