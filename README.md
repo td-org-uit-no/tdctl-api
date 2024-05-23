@@ -60,7 +60,7 @@ We have chosen a tech stack that should make it easy for new students to quickly
             ./dev_utils.sh compose up
         ```
 6. **Optional:** Seed the database with test users:
-    > This will provide you with a dummy admin user which has the credentials *Username* : ```Admin``` *Password* : ```Admin!234```
+    > This will provide you with a dummy admin user which has the credentials *E-mail* : ```dev_admin@admin.com``` *Password* : ```Admin!234``` to login.
     ```bash
         ./dev_utils.sh seed
     ```
