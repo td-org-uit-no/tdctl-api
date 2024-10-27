@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 import os
 import shutil
-from fastapi import APIRouter, Response, Request, HTTPException, Depends, BackgroundTasks
+from fastapi import APIRouter, Response, Request, HTTPException, Depends, BackgroundTasks, Query
 from fastapi.datastructures import UploadFile
 from fastapi.param_functions import File
 from pydantic import ValidationError
@@ -94,7 +94,9 @@ def get_upcoming_events(request: Request, token: AccessTokenPayload = Depends(op
 
 
 @router.get('/past-events')
-def get_past_events(request: Request, token: AccessTokenPayload = Depends(optional_authentication)):
+def get_past_events(request: Request, token: AccessTokenPayload = Depends(optional_authentication),
+                    skip: int = Query(0, ge=0),
+                    limit: int = Query(10,ge=1,le=50)):
     """ Get last 10 events that have passed """
     # TODO: Expand endpoint to accept custom amount?
     db = get_database(request)
@@ -114,7 +116,8 @@ def get_past_events(request: Request, token: AccessTokenPayload = Depends(option
     pipeline = [
         {"$match": search_filter},
         {"$sort": {"date": -1}},
-        {"$limit": 10}
+        {"$skip": skip},
+        {"$limit": limit},
     ]
 
     res = db.events.aggregate(pipeline)
