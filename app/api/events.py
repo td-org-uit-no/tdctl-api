@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import os
 import shutil
 from fastapi import APIRouter, Response, Request, HTTPException, Depends, BackgroundTasks, Query
@@ -93,11 +93,28 @@ def get_upcoming_events(request: Request, token: AccessTokenPayload = Depends(op
     return [Event.model_validate(event) for event in upcoming_events]
 
 
+@router.get('/past-events/count')
+def get_past_events_count(request: Request, token: AccessTokenPayload = Depends(optional_authentication)):
+    """ Get count of past events """
+    db = get_database(request)
+
+    # Get current UTC time as an ISO-formatted string
+    date_str = datetime.now(timezone.utc).isoformat(timespec='seconds')
+
+    # Apply search filter according to role
+    search_filter = {'date': {"$lt": date_str}}
+    if token and token.role != Role.admin:
+        search_filter["public"] = True
+
+    # Count the number of documents that match the filter
+    count = db.events.count_documents(search_filter)
+    return {"count": count}
+
 @router.get('/past-events')
 def get_past_events(request: Request, token: AccessTokenPayload = Depends(optional_authentication),
                     skip: int = Query(0, ge=0),
                     limit: int = Query(10,ge=1,le=50)):
-    """ Get last 10 events that have passed """
+    """ Get last  events that have passed """
     # TODO: Expand endpoint to accept custom amount?
     db = get_database(request)
 
@@ -112,7 +129,7 @@ def get_past_events(request: Request, token: AccessTokenPayload = Depends(option
     if token and token.role == Role.admin:
         search_filter = {'date': {"$lt": date}}
 
-    # Get the last 10 events
+    # Get the last events
     pipeline = [
         {"$match": search_filter},
         {"$sort": {"date": -1}},

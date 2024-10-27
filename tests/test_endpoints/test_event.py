@@ -122,19 +122,44 @@ def test_get_upcoming_events(client):
     response = client.get("/api/upcoming/")
     assert len(response.json()) == 1
 
-
-def test_get_past_events(client):
-    # Login
+def test_get_past_events_count(client):
+    # Login as admin
     client_login(client, admin_member["email"], admin_member["password"])
 
-    # Create future event
-    response = client.post('/api/event/', json=new_event)
+    # Get count of past events
+    response = client.get('/api/event/past-events/count')
     assert response.status_code == 200
+    count_response = response.json()
+    assert "count" in count_response
 
-    # Should only get past events
-    response = client.get('/api/event/past-events/')
+    # Assert that the count matches the expected number
+    expected_past_events_count = 17 
+    assert count_response["count"] == expected_past_events_count
+
+
+def test_get_past_events_with_pagination(client):
+    # Login as admin
+    client_login(client, admin_member["email"], admin_member["password"])
+
+    # Get total count of past events
+    response = client.get('/api/event/past-events/count')
     assert response.status_code == 200
-    assert len(response.json()) == len(test_events)
+    total_past_events = response.json()["count"]
+
+    # Set pagination parameters
+    limit = 5  
+    total_pages = (total_past_events + limit - 1) // limit  
+
+    # Iterate through pages
+    for page in range(total_pages):
+        skip = page * limit
+        response = client.get(f'/api/event/past-events?skip={skip}&limit={limit}')
+        assert response.status_code == 200
+        past_events = response.json()
+
+        # Calculate expected number of events on this page
+        expected_events = min(limit, total_past_events - skip)
+        assert len(past_events) == expected_events
 
 
 @authentication_required("/api/event/joined-events", "get")
