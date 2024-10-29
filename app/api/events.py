@@ -95,14 +95,14 @@ def get_upcoming_events(request: Request, token: AccessTokenPayload = Depends(op
 
 @router.get('/past-events/count')
 def get_past_events_count(request: Request, token: AccessTokenPayload = Depends(optional_authentication)):
-    """ Get count of past events """
+    """Get count of past events"""
     db = get_database(request)
 
-    # Get current UTC time as an ISO-formatted string
-    date_str = datetime.now(timezone.utc).isoformat(timespec='seconds')
+    # Get current UTC datetime
+    current_datetime = datetime.now(timezone.utc)
 
     # Apply search filter according to role
-    search_filter = {'date': {"$lt": date_str}}
+    search_filter = {"date": {"$lt": current_datetime}}
     if token and token.role != Role.admin:
         search_filter["public"] = True
 
