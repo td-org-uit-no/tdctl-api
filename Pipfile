@@ -10,7 +10,7 @@ pylint = "*"
 
 [packages]
 pyjwt = "==2.8.0"
-Werkzeug = "==3.0.0"
+Werkzeug = "==3.0.1"
 "fastapi[all]" = "==0.103.2"
 pymongo = "==4.5.0"
 uvicorn = "==0.23.2"
