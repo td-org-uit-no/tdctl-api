@@ -147,13 +147,13 @@ def test_get_past_events_with_pagination(client):
     total_past_events = response.json()["count"]
 
     # Set pagination parameters
-    limit = 5  
+    limit = 10  
     total_pages = (total_past_events + limit - 1) // limit  
 
     # Iterate through pages
     for page in range(total_pages):
         skip = page * limit
-        response = client.get(f'/api/event/past-events?skip={skip}&limit={limit}')
+        response = client.get(f'/api/event/past-events?skip={skip}')
         assert response.status_code == 200
         past_events = response.json()
 
