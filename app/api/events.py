@@ -94,17 +94,23 @@ def get_upcoming_events(request: Request, token: AccessTokenPayload = Depends(op
 
 
 @router.get('/past-events/count')
-def get_past_events_count(request: Request, token: AccessTokenPayload = Depends(optional_authentication)):
+def get_past_events_count(request: Request,
+                          token: AccessTokenPayload = Depends(optional_authentication)):
     """Get count of past events"""
     db = get_database(request)
 
     # Get current UTC datetime
-    current_datetime = datetime.now(timezone.utc)
+    current_datetime = datetime.now()
 
     # Apply search filter according to role
-    search_filter = {"date": {"$lt": current_datetime}}
-    if token and token.role != Role.admin:
-        search_filter["public"] = True
+    if token and token.role == Role.admin:
+        search_filter = {
+            'date' : {"$lt": current_datetime}
+            }
+    else :
+        search_filter = {
+            "$and": [{'date' : {"$lt": current_datetime}}, {"public" : {"$eq": True}}]
+        }
 
     # Count the number of documents that match the filter
     count = db.events.count_documents(search_filter)
@@ -112,8 +118,7 @@ def get_past_events_count(request: Request, token: AccessTokenPayload = Depends(
 
 @router.get('/past-events')
 def get_past_events(request: Request, token: AccessTokenPayload = Depends(optional_authentication),
-                    skip: int = Query(0, ge=0),
-                    limit: int = Query(10,ge=1,le=50)):
+                    skip: int = Query(0, ge=0)):
     """ Get last  events that have passed """
     # TODO: Expand endpoint to accept custom amount?
     db = get_database(request)
@@ -129,12 +134,13 @@ def get_past_events(request: Request, token: AccessTokenPayload = Depends(option
     if token and token.role == Role.admin:
         search_filter = {'date': {"$lt": date}}
 
+    fixed_limit = 10
     # Get the last events
     pipeline = [
         {"$match": search_filter},
         {"$sort": {"date": -1}},
         {"$skip": skip},
-        {"$limit": limit},
+        {"$limit": fixed_limit},
     ]
 
     res = db.events.aggregate(pipeline)
