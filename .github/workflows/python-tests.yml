@@ -29,5 +29,5 @@ jobs:
 
       - name: Run tests
         run: |
-          pipenv install
+          pipenv sync
           pipenv run pytest
