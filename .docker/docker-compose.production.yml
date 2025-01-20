@@ -36,6 +36,7 @@ services:
     image: mongo:latest
     restart: unless-stopped
     environment:
+      - GLIBC_TUNABLES: glibc.pthread.rseq=0
       - MONGO_INITDB_ROOT_USERNAME=${MONGODB_USER}
       - MONGO_INITDB_ROOT_PASSWORD=${MONGODB_PASSWORD}
       - MONGO_INITDB_DATABASE=${DATABASE}
