@@ -29,6 +29,8 @@ services:
     image: mongo:latest
     command: mongod --port 26900
     restart: unless-stopped
+    environment:
+      GLIBC_TUNABLES: glibc.pthread.rseq=0
     ports:
       - "26900:26900"
     volumes:

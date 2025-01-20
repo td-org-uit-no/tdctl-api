@@ -14,8 +14,7 @@ ADD . .
 ENV PATH="/home/prod_user/.local/bin:${PATH}"
 
 RUN pip3 install --user pipenv
+RUN pipenv install --system --deploy
 # ensure requirements.txt gets the newest packages
-RUN pipenv lock
-RUN pipenv requirements > requirements.txt
-RUN pip install --user -r requirements.txt
+
 CMD ["uvicorn", "manage:app", "--host", "0.0.0.0", "--port", "5000", "--forwarded-allow-ips", "*"]
