@@ -1,13 +1,15 @@
-import os
 import json
-from uuid import UUID, uuid4
-from app.db import get_test_db
-from app.utils.event_utils import num_of_confirmed_participants, num_of_deprioritized_participants
-from tests.conftest import client_login
+import os
 from datetime import datetime, timedelta
-from tests.test_endpoints.test_members import payload
-from tests.users import regular_member, admin_member, second_admin, second_member
+from uuid import UUID, uuid4
 
+from app.db import get_test_db
+from app.utils.event_utils import (num_of_confirmed_participants,
+                                   num_of_deprioritized_participants)
+from tests.conftest import client_login
+from tests.test_endpoints.test_members import payload
+from tests.users import (admin_member, regular_member, second_admin,
+                         second_member)
 from tests.utils.authentication import admin_required, authentication_required
 
 db = get_test_db()
@@ -33,7 +35,7 @@ new_event = {
     "registeredPenalties": []
 }
 
-joinEventPayload = {
+eventPrefsPayload = {
     "transportation": False,
     "food": True,
     "dietaryRestrictions": "Eggs"
@@ -183,7 +185,7 @@ def test_get_joined_events(client):
 
     # Join
     response = client.post(
-        f'/api/event/{test_event_id}/join', json=joinEventPayload)
+        f'/api/event/{test_event_id}/join', json=eventPrefsPayload)
     assert response.status_code == 200
 
     # Now returns one event
@@ -297,18 +299,23 @@ def test_get_event_options(client):
     eid = response.json()["eid"]
     assert response.status_code == 200
 
-    # Join with options
-    response = client.post(f'/api/event/{eid}/join', json=joinEventPayload)
+    # Join event
+    response = client.post(f'/api/event/{eid}/join')
+    assert response.status_code == 200
+
+    # Set event options
+    response = client.put(
+        f'/api/event/{eid}/update-options', json=eventPrefsPayload)
     assert response.status_code == 200
 
     # Fetch event options
     response = client.get(f'/api/event/{eid}/options')
     assert response.status_code == 200
     assert response.json()[
-        'transportation'] == joinEventPayload['transportation']
-    assert response.json()['food'] == joinEventPayload['food']
+        'transportation'] == eventPrefsPayload['transportation']
+    assert response.json()['food'] == eventPrefsPayload['food']
     assert response.json()[
-        'dietaryRestrictions'] == joinEventPayload['dietaryRestrictions']
+        'dietaryRestrictions'] == eventPrefsPayload['dietaryRestrictions']
 
 
 @authentication_required("/api/event/{uuid}/options", "get")
@@ -321,8 +328,8 @@ def test_update_event_options(client):
     eid = response.json()["eid"]
     assert response.status_code == 200
 
-    # Join with options
-    response = client.post(f'/api/event/{eid}/join', json=joinEventPayload)
+    # Join
+    response = client.post(f'/api/event/{eid}/join')
     assert response.status_code == 200
 
     # Update options
@@ -371,14 +378,14 @@ def test_join_unpublished_event(client):
 
     # admin should be able to join unpublished events
     response = client.post(
-        f'/api/event/{test_event_id}/join', json=joinEventPayload)
+        f'/api/event/{test_event_id}/join')
     assert response.status_code == 200
 
     # Login as regular member
     client_login(client, regular_member["email"], regular_member["password"])
     # try joining closed event
     response = client.post(
-        f'/api/event/{test_event_id}/join', json=joinEventPayload)
+        f'/api/event/{test_event_id}/join')
     assert response.status_code == 403
 
     ########## Set registration opening date ##########
@@ -394,13 +401,13 @@ def test_join_unpublished_event(client):
     # user should not be able to join before event registration opens
     client_login(client, regular_member["email"], regular_member["password"])
     response = client.post(
-        f'/api/event/{test_event_id}/join', json=joinEventPayload)
+        f'/api/event/{test_event_id}/join')
     assert response.status_code == 403
 
     # admin should be able to join
     client_login(client, second_admin["email"], second_admin["password"])
     response = client.post(
-        f'/api/event/{test_event_id}/join', json=joinEventPayload)
+        f'/api/event/{test_event_id}/join')
     assert response.status_code == 200
 
 
@@ -415,7 +422,7 @@ def test_join_published_event(client):
 
     # joins the event
     response = client.post(
-        f'/api/event/{new_event_eid}/join', json=joinEventPayload)
+        f'/api/event/{new_event_eid}/join')
     assert response.status_code == 200
 
     # creates new member for joining the event
@@ -426,7 +433,7 @@ def test_join_published_event(client):
     client_login(client, payload["email"], payload["password"])
 
     response = client.post(
-        f'/api/event/{new_event_eid}/join', json=joinEventPayload)
+        f'/api/event/{new_event_eid}/join')
     assert response.status_code == 200
 
     # === test join ordering ===
@@ -443,7 +450,7 @@ def test_join_published_event(client):
 
     client_login(client, payload["email"], payload["password"])
 
-    response = client.post(f'/api/event/{eid}/join', json=joinEventPayload)
+    response = client.post(f'/api/event/{eid}/join')
     assert response.status_code == 200
     # check that joined non penalized comes in front of penalized member
     updated_event = db.events.find_one({"eid": UUID(eid)})
@@ -506,7 +513,7 @@ def test_leave_event(client):
 
     client_login(client, regular_member["email"], regular_member["password"])
     response = client.post(
-        f'/api/event/{new_event_eid}/join', json=joinEventPayload)
+        f'/api/event/{new_event_eid}/join', json=eventPrefsPayload)
     assert response.status_code == 200
 
     penalty_before = member_before_leave["penalty"]
@@ -514,7 +521,7 @@ def test_leave_event(client):
     client_login(client, second_member["email"], second_member["password"])
     # test that users on waiting list does not receive penalty
     response = client.post(
-        f'/api/event/{new_event_eid}/join', json=joinEventPayload)
+        f'/api/event/{new_event_eid}/join', json=eventPrefsPayload)
     assert response.status_code == 200
 
     response = client.post(f'/api/event/{new_event_eid}/leave')
@@ -541,7 +548,7 @@ def test_leave_event(client):
     penalty_before = already_penalized_member["penalty"]
 
     response = client.post(
-        f'/api/event/{new_event_eid}/join', json=joinEventPayload)
+        f'/api/event/{new_event_eid}/join', json=eventPrefsPayload)
     assert response.status_code == 200
 
     response = client.post(f'/api/event/{new_event_eid}/leave')
@@ -589,7 +596,7 @@ def test_is_confirmed(client):
     assert response.status_code == 400
 
     # Join
-    response = client.post(f'/api/event/{eid}/join', json=joinEventPayload)
+    response = client.post(f'/api/event/{eid}/join', json=eventPrefsPayload)
     assert response.status_code == 200
 
     # Should not be confirmed
@@ -911,7 +918,7 @@ def test_update_attendance(client):
 
     # Join event
     client_login(client, regular_member["email"], regular_member["password"])
-    response = client.post(f'/api/event/{eid}/join', json=joinEventPayload)
+    response = client.post(f'/api/event/{eid}/join', json=eventPrefsPayload)
     assert response.status_code == 200
 
     # Should not be able to register future event yet

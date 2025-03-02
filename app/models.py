@@ -1,8 +1,8 @@
+from datetime import date, datetime
 from enum import Enum
-from typing import Dict, Literal, Optional, List
-from pydantic import BaseModel, EmailStr, UUID4, create_model, field_validator
-from datetime import datetime, date
+from typing import Dict, List, Literal, Optional
 
+from pydantic import UUID4, BaseModel, EmailStr, create_model, field_validator
 from pydantic.fields import Field
 
 
@@ -238,7 +238,7 @@ class ForgotPasswordPayload(BaseModel):
     newPassword: str
 
 
-class JoinEventPayload(BaseModel):
+class EventPrefsPayload(BaseModel):
     food: Optional[bool] = None
     transportation: Optional[bool] = None
     dietaryRestrictions: Optional[str] = None

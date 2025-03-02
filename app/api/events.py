@@ -1,26 +1,29 @@
-from datetime import datetime, timedelta, timezone
+import asyncio
 import os
 import shutil
-from fastapi import APIRouter, Response, Request, HTTPException, Depends, BackgroundTasks, Query
+from datetime import datetime, timedelta, timezone
+from uuid import UUID, uuid4
+
+import pandas as pd
+import qrcode as qr
+from fastapi import (APIRouter, BackgroundTasks, Depends, HTTPException, Query,
+                     Request, Response)
 from fastapi.datastructures import UploadFile
 from fastapi.param_functions import File
+from fpdf import FPDF
 from pydantic import ValidationError
+from pymongo import UpdateOne
 from starlette.responses import FileResponse
-from uuid import uuid4, UUID
+
 from app.utils.event_utils import *
 from app.utils.validation import validate_image_file_type, validate_uuid
-from ..auth_helpers import authorize, authorize_admin, optional_authentication
-from ..db import get_database, get_image_path, get_qr_path, get_export_path
-from ..models import *
-from .utils import get_event_or_404, penalize
-import pandas as pd
-from .mail import send_mail
-from ..models import MailPayload
-import asyncio
-from pymongo import UpdateOne
-import qrcode as qr
-from fpdf import FPDF
 
+from ..auth_helpers import authorize, authorize_admin, optional_authentication
+from ..db import get_database, get_export_path, get_image_path, get_qr_path
+from ..models import *
+from ..models import MailPayload
+from .mail import send_mail
+from .utils import get_event_or_404, penalize
 
 router = APIRouter()
 lock = asyncio.Lock()
@@ -321,7 +324,7 @@ def get_event_options(request: Request, id: str, token: AccessTokenPayload = Dep
 
 
 @router.put('/{id}/update-options', dependencies=[Depends(validate_uuid)])
-def update_event_options(request: Request, id: str, payload: JoinEventPayload, token: AccessTokenPayload = Depends(authorize)):
+def update_event_options(request: Request, id: str, payload: EventPrefsPayload, token: AccessTokenPayload = Depends(authorize)):
     """ Update options for given event """
     db = get_database(request)
     event = get_event_or_404(db, id)
@@ -357,7 +360,7 @@ def update_event_options(request: Request, id: str, payload: JoinEventPayload, t
 
 
 @router.post('/{id}/join', dependencies=[Depends(validate_uuid)])
-def join_event(request: Request, id: str, payload: JoinEventPayload, token: AccessTokenPayload = Depends(authorize)):
+def join_event(request: Request, id: str, token: AccessTokenPayload = Depends(authorize)):
     db = get_database(request)
     event = get_event_or_404(db, id)
     member = db.members.find_one({'id': UUID(token.user_id)})
@@ -386,9 +389,9 @@ def join_event(request: Request, id: str, payload: JoinEventPayload, token: Acce
         pass
 
     participantData = {
-        'food': payload.food,
-        'transportation': payload.transportation,
-        'dietaryRestrictions': payload.dietaryRestrictions,
+        'food': False,
+        'transportation': False,
+        'dietaryRestrictions': '',
         'submitDate': datetime.now(),
         'confirmed': False,
         'attended': False
