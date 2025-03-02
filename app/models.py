@@ -149,6 +149,10 @@ class ParticipantPosUpdate(BaseModel):
         create_model("ParticipantPosUpdate", id=(UUID4, ...), pos=(int, ...))
     ]
 
+class CustomPreference(BaseModel):
+    name: str
+    # Description to display for the text field, if appliccable
+    textField: Optional[str] = None
 
 class EventInput(BaseModel):
     title: str
@@ -163,6 +167,7 @@ class EventInput(BaseModel):
     bindingRegistration: bool
     transportation: bool
     food: bool
+    customFields: List[CustomPreference]
     extraInformation: Optional[str] = None
     maxParticipants: Optional[int] = None
     romNumber: Optional[str] = None
@@ -242,7 +247,6 @@ class EventPrefsPayload(BaseModel):
     food: Optional[bool] = None
     transportation: Optional[bool] = None
     dietaryRestrictions: Optional[str] = None
-
 
 class PenaltyInput(BaseModel):
     penalty: int = Field(ge=0, description="Penalty must be larger or equal to 0")
