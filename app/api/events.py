@@ -370,7 +370,7 @@ def join_event(request: Request, id: str, payload: JoinEventPayload, token: Acce
 
     # admin can join all events
     if member["role"] != Role.admin:
-        if not valid_registration(event["registrationOpeningDate"]):
+        if not valid_registration(event["registrationOpeningDate"], member, event):
             raise HTTPException(403, "Event registration is not open")
 
         if event["public"] == False:
@@ -643,7 +643,7 @@ async def confirmation(request: Request, id: str, m: EventConfirmMessage, backgr
             raise HTTPException(
                 400, "Cannot send confirmation to a unpublished event")
 
-        if not valid_registration(event["registrationOpeningDate"]):
+        if not valid_registration(event["registrationOpeningDate"], member, event):
             raise HTTPException(
                 400, "Cannot send confirmations before registration is opened")
 

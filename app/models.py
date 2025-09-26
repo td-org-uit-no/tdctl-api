@@ -170,6 +170,10 @@ class EventInput(BaseModel):
     picturePath: Optional[str] = None
     # time before event starting
     registrationOpeningDate: Optional[datetime] = None
+    # earlier registration date for prioritized years
+    prioritizedRegistrationDate: Optional[datetime] = None
+    # array of årskull years that get early access
+    prioritizedYears: Optional[List[int]] = None
     confirmed: Optional[bool] = None
 
 
@@ -197,6 +201,8 @@ class EventUpdate(BaseModel):
     transportation: Optional[bool] = None
     food: Optional[bool] = None
     registrationOpeningDate: Optional[datetime] = None
+    prioritizedRegistrationDate: Optional[datetime] = None
+    prioritizedYears: Optional[List[int]] = None
     confirmed: Optional[bool] = None
 
 
