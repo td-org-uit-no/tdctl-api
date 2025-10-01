@@ -538,6 +538,12 @@ async def reorder_participants(request: Request, id: str, position_update: Parti
             raise HTTPException(
                 400, "Not valid: got invalid or outdated participant list")
 
+        participants = [
+            participant
+            for participant in participants
+            if db.members.find_one({'id': participant['id']}) != None
+        ]
+
         for participant in position_update.updateList:
             participant = participant.model_dump()
             for i, p in enumerate(participants):
