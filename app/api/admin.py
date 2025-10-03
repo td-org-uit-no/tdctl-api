@@ -79,8 +79,8 @@ def update_member(request: Request, id: str, memberData: AdminMemberUpdate, toke
     if not member:
         raise HTTPException(404, "User not found")
 
-    if member["role"] == Role.admin:
-        raise HTTPException(403, "Admin cannot update another admin")
+    ##if member["role"] == Role.admin:
+      ##  raise HTTPException(403, "Admin cannot update another admin")
 
     result = db.members.find_one_and_update(
         {'id': member["id"]}, 

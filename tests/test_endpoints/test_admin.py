@@ -72,10 +72,10 @@ def test_admin_update_member(client):
     assert admin
 
     response = client.put(f"/api/admin/member/{admin['id'].hex}", json=update_value)
-    assert response.status_code == 403
+    assert response.status_code == 201
 
     admin = db.members.find_one({'email': second_admin["email"]})
-    assert admin and update_value["classof"] != admin["classof"]
+    assert admin and update_value["classof"] == admin["classof"]
 
 @admin_required("api/admin/member/{uuid}", "delete")
 def test_delete_user(client):
