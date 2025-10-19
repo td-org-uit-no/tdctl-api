@@ -38,19 +38,9 @@ def validate_event_dates(event):
             event.date, event.prioritizedRegistrationDate)
 
         # Prioritized registration date must be before regular registration date
-        if event.registrationOpeningDate != None:
-            try:
-                prioritized_date = datetime.strptime(
-                    str(event.prioritizedRegistrationDate), "%Y-%m-%d %H:%M:%S")
-                regular_date = datetime.strptime(
-                    str(event.registrationOpeningDate), "%Y-%m-%d %H:%M:%S")
-
-                if prioritized_date >= regular_date:
-                    raise HTTPException(
-                        400, "Prioritized registration date must be before regular registration date")
-            except ValueError:
-                raise HTTPException(
-                    400, "Invalid date format for prioritized registration date")
+        if event.prioritizedRegistrationDate >= event.registrationOpeningDate:
+            raise HTTPException(
+                400, "Prioritized registration date must be before regular registration date")
 
 def validate_cancellation_time(start_date):
     """ validates if the cancellation time is inside the acceptable time frame """
