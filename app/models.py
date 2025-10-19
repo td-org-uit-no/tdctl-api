@@ -248,6 +248,83 @@ class PenaltyInput(BaseModel):
     penalty: int = Field(ge=0, description="Penalty must be larger or equal to 0")
 
 
+# -------------------- Committees --------------------
+
+class CommitteeInput(BaseModel):
+    name: str
+    description: Optional[str] = None
+    hasOpenSpots: bool
+    status: Status
+    # Optional to allow custom slugs; otherwise derived from name
+    slug: Optional[str] = None
+    # Email associated with the committee (receives applications)
+    email: EmailStr
+
+
+class CommitteeUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    hasOpenSpots: Optional[bool] = None
+    status: Optional[Status] = None
+    slug: Optional[str] = None
+    email: Optional[EmailStr] = None
+
+
+class Committee(BaseModel):
+    id: UUID4
+    name: str
+    slug: str
+    description: Optional[str] = None
+    status: Status
+    hasOpenSpots: bool
+    createdAt: datetime
+    updatedAt: datetime
+    createdBy: EmailStr
+    email: EmailStr
+    memberCount: int
+
+
+class CommitteeDB(BaseModel):
+    id: UUID4
+    name: str
+    slug: str
+    description: Optional[str] = None
+    status: Status
+    hasOpenSpots: bool
+    createdAt: datetime
+    updatedAt: datetime
+    createdBy: EmailStr
+    email: EmailStr
+
+
+class CommitteeApplicationInput(BaseModel):
+    # Optional message provided by the applicant
+    message: Optional[str] = None
+
+
+class CommitteeMemberInput(BaseModel):
+    userId: UUID4
+
+
+class CommitteeMemberDB(BaseModel):
+    committeeId: UUID4
+    userId: UUID4
+    addedBy: EmailStr
+    addedAt: datetime
+    active: bool = True
+    leftAt: Optional[datetime] = None
+    leftBy: Optional[EmailStr] = None
+
+
+class CommitteeMemberListItem(BaseModel):
+    id: UUID4
+    realName: str
+    email: EmailStr
+    classOf: str
+    phone: Optional[str] = None
+    role: Role
+
+
 class SetAttendancePayload(BaseModel):
     member_id: Optional[str] = None
     attendance: bool

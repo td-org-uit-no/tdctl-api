@@ -1,0 +1,34 @@
+[
+  {
+    "name": "Board",
+    "slug": "board",
+    "description": "TD Board - Leadership committee",
+    "status": "active",
+    "hasOpenSpots": false,
+    "email": "board@td-uit.no"
+  },
+  {
+    "name": "Tech Committee",
+    "slug": "tech",
+    "description": "Technology and development committee",
+    "status": "active",
+    "hasOpenSpots": true,
+    "email": "tech@td-uit.no"
+  },
+  {
+    "name": "Social Committee",
+    "slug": "social",
+    "description": "Social events and activities",
+    "status": "active",
+    "hasOpenSpots": true,
+    "email": "social@td-uit.no"
+  },
+  {
+    "name": "Inactive Committee",
+    "slug": "inactive",
+    "description": "This committee is inactive",
+    "status": "inactive",
+    "hasOpenSpots": false,
+    "email": "inactive@td-uit.no"
+  }
+]
