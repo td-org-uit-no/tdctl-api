@@ -33,6 +33,14 @@ def validate_event_dates(event):
         validate_registartion_opening_time(
             event.date, event.registrationOpeningDate)
 
+    if event.prioritizedRegistrationDate != None:
+        validate_registartion_opening_time(
+            event.date, event.prioritizedRegistrationDate)
+
+        # Prioritized registration date must be before regular registration date
+        if event.prioritizedRegistrationDate >= event.registrationOpeningDate:
+            raise HTTPException(
+                400, "Prioritized registration date must be before regular registration date")
 
 def validate_cancellation_time(start_date):
     """ validates if the cancellation time is inside the acceptable time frame """
@@ -65,7 +73,20 @@ def should_penalize(event, user_id):
     return False
 
 
-def valid_registration(opening_date):
+def valid_registration(opening_date, member=None, event=None):
+    # Check if member is in prioritized years and prioritized registration is open
+    if member and event and event.get("prioritizedYears") and event.get("prioritizedRegistrationDate"):
+        try:
+            member_year = int(member["classof"])
+            if member_year in event["prioritizedYears"]:
+                prioritized_start = datetime.strptime(
+                    str(event["prioritizedRegistrationDate"]), "%Y-%m-%d %H:%M:%S")
+                if datetime.now() > prioritized_start:
+                    return True
+        except (ValueError, KeyError):
+            pass
+
+    # Check regular registration opening date
     # non specified opening date means registration is open
     if opening_date == None:
         return True
