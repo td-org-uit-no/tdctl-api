@@ -317,7 +317,7 @@ def get_event_options(request: Request, id: str, token: AccessTokenPayload = Dep
     # Get user data and return
     userData = user_event['participants'][0]
     return {'food': userData['food'], 'transportation': userData['transportation'],
-            'dietaryRestrictions': userData['dietaryRestrictions']}
+            'dietaryRestrictions': userData['dietaryRestrictions'], 'gdprConsent': userData.get('gdprConsent')}
 
 
 @router.put('/{id}/update-options', dependencies=[Depends(validate_uuid)])
@@ -389,6 +389,7 @@ def join_event(request: Request, id: str, payload: JoinEventPayload, token: Acce
         'food': payload.food,
         'transportation': payload.transportation,
         'dietaryRestrictions': payload.dietaryRestrictions,
+        'gdprConsent': payload.gdprConsent,
         'submitDate': datetime.now(),
         'confirmed': False,
         'attended': False
@@ -938,7 +939,8 @@ async def exportEvent(background_tasks: BackgroundTasks, request: Request, id: s
     event_data = [{'Total participants': len(event['participants']),
                    'Total to eat': len([p for p in event['participants'] if p['food'] == True]),
                    'Total to transportation':  len(
-        [p for p in event['participants'] if p['transportation'] == True])}]
+        [p for p in event['participants'] if p['transportation'] == True]),
+                   'Total GDPR consent': len([p for p in event['participants'] if p.get('gdprConsent') == True])}]
 
     # Create dataframe
     df_title = pd.DataFrame(event_header)
