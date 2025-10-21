@@ -36,7 +36,8 @@ new_event = {
 joinEventPayload = {
     "transportation": False,
     "food": True,
-    "dietaryRestrictions": "Eggs"
+    "dietaryRestrictions": "Eggs",
+    "gdprConsent": True
 }
 
 

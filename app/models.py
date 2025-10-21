@@ -137,6 +137,7 @@ class Participant(BaseModel):
     food: bool
     transportation: bool
     dietaryRestrictions: str
+    gdprConsent: Optional[bool] = None
     submitDate: datetime
     penalty: int
     # indicate if participant has recieved an confirmation mail
@@ -242,6 +243,7 @@ class JoinEventPayload(BaseModel):
     food: Optional[bool] = None
     transportation: Optional[bool] = None
     dietaryRestrictions: Optional[str] = None
+    gdprConsent: Optional[bool] = None
 
 
 class PenaltyInput(BaseModel):
