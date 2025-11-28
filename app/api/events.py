@@ -293,9 +293,8 @@ def get_event_participants(request: Request, id: str, token: AccessTokenPayload 
         return [Participant.model_validate(p) for p in event['participants']]
 
     if event["maxParticipants"] != None:
-        # only return the list when events are open i.e no cap
-        raise HTTPException(
-            401, "regular user cannot get participant list for limited events")
+        # return obfuscated list for capped event
+        return [{'id': p['id']} for p in event['participants']]
 
     return [{'id': p['id'], 'name': p['realName']} for p in event['participants']]
 
