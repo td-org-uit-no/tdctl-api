@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api import kiosk, stats
 from .config import config
 
-from .api import members, auth, events, admin, mail, jobs
+from .api import members, auth, events, admin, mail, jobs, committees
 from .db import setup_db
 
 
@@ -40,6 +40,7 @@ def create_app():
     app.include_router(mail.router, prefix="/api/mail", tags=["mail"])
     app.include_router(jobs.router, prefix="/api/jobs", tags=["job"])
     app.include_router(kiosk.router, prefix="/api/kiosk", tags=["kiosk"])
+    app.include_router(committees.router, prefix="/api/committee", tags=["committee"])
     # only visible in development
     app.include_router(
         stats.router,

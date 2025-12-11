@@ -50,6 +50,10 @@ def setup_db(app):
     
     # Expire reset password codes after 10 minutes
     app.db.passwordResets.create_index("createdAt", expireAfterSeconds=60 * 10)
+
+    # Ensure unique committee memberships (one user per committee)
+    app.db.committeeMembers.create_index([("committeeId", 1), ("userId", 1)], unique=True)
+
     app.qr_path = f'{file_storage_path}/qr'
     if app.config.MONGO_DBNAME == 'test':
         app.image_path = 'db/test_event_images'
