@@ -127,6 +127,8 @@ def num_of_deprioritized_participants(participants):
 def num_of_confirmed_participants(participants):
     return sum(p["confirmed"] == True for p in participants)
 
+def num_of_waitlist_participants(participants):
+    return sum(p["confirmed"] == False for p in participants)
 
 def get_default_confirmation(event):
     with open("./app/assets/mails/event_confirmation.txt", 'r') as mail_content:
