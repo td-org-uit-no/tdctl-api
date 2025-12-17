@@ -615,10 +615,11 @@ async def send_notification_mail(request: Request, id: str, m: EventMailMessage,
 
     # Only send mail to confirmed participants if specified
     if m.confirmedOnly:
-        pipeline.append({"$match": {"participants.confirmed": True}})
+        pipeline += [{"$match": {"participants.confirmed": True}}]
 
+    # Only send mail to waitlisted participants if specified
     if m.waitListOnly:
-        pipeline.append({"$match": {"participants.confirmed": False}})
+        pipeline += [{"$match": {"participants.confirmed": False}}]
 
     # Group by email after filtering
     pipeline.append({"$group": {"_id": "$participants.email"}})

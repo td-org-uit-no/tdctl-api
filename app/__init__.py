@@ -1,5 +1,4 @@
 import os
-import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -11,11 +10,6 @@ from .db import setup_db
 
 
 def create_app():
-    # Configure logging to show INFO level logs
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(levelname)s:\t%(name)s - %(message)s'
-    )
     app = FastAPI(
         title="TDCTL-API",
         version="0.1",
