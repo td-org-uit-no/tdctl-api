@@ -16,5 +16,5 @@ jobs:
         with:
           host: prod.td.org.uit.no
           username: ${{ secrets.PROD_SERVER_USERNAME }}
-          password: ${{ secrets.PROD_SERVER_PASSWORD }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: ./pull-latest-api.sh
