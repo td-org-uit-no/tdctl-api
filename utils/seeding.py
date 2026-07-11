@@ -134,6 +134,8 @@ def seed_events(db, seed_path):
             member['transportation'] = random.choice(bool_list)
             member['dietaryRestrictions'] = random.choices(
                 dietaryRestriction_list, weights=[0.9, 0.05, 0.03, 0.02])[0]
+            member['gdprConsent'] = random.choices(
+                bool_list, weights=[0.95, 0.05])[0]
 
             member['submitDate'] = datetime.now(
             ) + timedelta(hours=random.choices(
