@@ -503,13 +503,10 @@ def is_confirmed(request: Request, id: str, token: AccessTokenPayload = Depends(
 def remove_participant(request: Request, id: str, uid: str, token: AccessTokenPayload = Depends(authorize_admin)):
     db = get_database(request)
     event = get_event_or_404(db, id)
-    member = db.members.find_one({'id': UUID(uid)})
-
-    if not member:
-        raise HTTPException(404, "User could not be found")
+    uid = UUID(uid)
 
     participant = db.events.find_one({"eid": event["eid"]}, {"participants": {
-        "$elemMatch": {"id": member["id"]}}})
+        "$elemMatch": {"id": uid}}})
 
     if not participant:
         raise HTTPException(400, "User not joined event!")
@@ -520,7 +517,7 @@ def remove_participant(request: Request, id: str, uid: str, token: AccessTokenPa
         raise HTTPException(400, "User not joined event!")
 
     db.events.update_one({'eid': event['eid']}, {
-                         "$pull": {"participants": {"id": member["id"]}}})
+                         "$pull": {"participants": {"id": uid}}})
 
     return Response(status_code=200)
 
@@ -540,6 +537,12 @@ async def reorder_participants(request: Request, id: str, position_update: Parti
         if not validate_pos_update(participants, position_update.updateList):
             raise HTTPException(
                 400, "Not valid: got invalid or outdated participant list")
+
+        participants = [
+            participant
+            for participant in participants
+            if db.members.find_one({'id': participant['id']}) != None
+        ]
 
         for participant in position_update.updateList:
             participant = participant.model_dump()
