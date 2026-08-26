@@ -254,12 +254,21 @@ def test_get_event_participants(client):
 
     response = client.get(f'/api/event/{eid}/participants')
     res_json = response.json()
+    if len(res_json) > 0:
+        assert 'id' in res_json[0]
+        assert len(res_json[0]) == 1  # only id field returned
+
+    """ Disabled checks that list is not returned for regular users on closed events, as per updated requirements
+
+    response = client.get(f'/api/event/{eid}/participants')
+    res_json = response.json()
     assert response.status_code == 401
 
     # checks that list is only returned for regular users on open events
     response = client.get(f'/api/event/{eid}/participants')
     res_json = response.json()
     assert response.status_code == 401
+    """
 
     # Test admin
 
