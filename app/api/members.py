@@ -264,6 +264,10 @@ def update_member(request: Request, memberData: MemberUpdate, token: AccessToken
         if values[key]:
             updateInfo[key] = values[key]
 
+    # classof is immutable once set to prevent manipulation of class-based privileges
+    if 'classof' in updateInfo and member.get('classof'):
+        raise HTTPException(400, "Cannot update classof: field already set")
+
     if not updateInfo:
         return HTTPException(400)
 
