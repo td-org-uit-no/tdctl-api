@@ -4,6 +4,7 @@ from pymongo import MongoClient
 from werkzeug.security import generate_password_hash
 from app import config
 from app.models import EventDB
+from app.models import CommitteeDB
 import json
 import os
 import shutil
@@ -180,6 +181,80 @@ def seed_jobs(db, seed_path):
     db.jobs.insert_many(list_of_jobs)
 
 
+def seed_committees(db, seed_path=None, seed_members=True):
+    """Create sample committees and optionally assign random members.
+
+    Args:
+        db: Database connection
+        seed_path: Path to JSON file with committee data
+        seed_members: If False, only create committees without assigning members (useful for tests)
+    """
+    if seed_path:
+        with open(seed_path, "r") as f:
+            committees = json.load(f)
+    else:
+        committees = [
+            {"name": "Board", "slug": "board", "description": "TD Board", "status": "active", "hasOpenSpots": False, "email": "board@td-uit.no"},
+            {"name": "Tech", "slug": "tech", "description": "Tech committee", "status": "active", "hasOpenSpots": True, "email": "tech@td-uit.no"},
+            {"name": "Social", "slug": "social", "description": "Social & events", "status": "active", "hasOpenSpots": True, "email": "social@td-uit.no"},
+        ]
+
+    # Use admin email as creator if present, else fallback
+    creator = db.members.find_one({"role": "admin"}) or db.members.find_one({})
+    creator_email = creator and creator.get("email") or "seed@td-uit.no"
+    now = datetime.now()
+
+    for c in committees:
+        if db.committees.find_one({"slug": c["slug"]}):
+            continue
+        doc = CommitteeDB(
+            id=uuid4(),
+            name=c["name"],
+            slug=c["slug"],
+            description=c.get("description"),
+            status=c["status"],
+            hasOpenSpots=c["hasOpenSpots"],
+            createdAt=now,
+            updatedAt=now,
+            createdBy=creator_email,
+            email=c["email"],
+        )
+        db.committees.insert_one(doc.model_dump())
+
+    # Skip member assignment if seed_members is False (for test environments)
+    if not seed_members:
+        return
+
+    # Assign some members to the committees
+    # Gather some member ids
+    members = list(db.members.find({}, {"id": 1, "email": 1}))
+    for c in db.committees.find({}, {"id": 1, "slug": 1, "hasOpenSpots": 1}):
+        # Assign 3-6 members
+        count = random.randint(3, min(6, len(members)))
+        random.shuffle(members)
+        chosen = members[:count]
+        for m in chosen:
+            # Check if membership already exists before inserting
+            existing = db.committeeMembers.find_one({
+                "committeeId": c["id"],
+                "userId": m["id"]
+            })
+            if existing:
+                continue
+            try:
+                db.committeeMembers.insert_one({
+                    "committeeId": c["id"],
+                    "userId": m["id"],
+                    "addedBy": creator_email,
+                    "addedAt": now,
+                    "active": True,
+                    "leftAt": None,
+                    "leftBy": None,
+                })
+            except Exception:
+                pass
+
+
 if __name__ == "__main__":
     db = get_db()
     events_seed_path = f"{base_dir}/events.json"
@@ -190,3 +265,4 @@ if __name__ == "__main__":
     seed_events(db, events_seed_path)
     seed_jobs(db, jobs_seed_path)
     seed_stats(db)
+    seed_committees(db)
