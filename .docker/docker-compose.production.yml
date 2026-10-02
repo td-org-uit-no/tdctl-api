@@ -2,6 +2,7 @@ services:
   tdctl_api:
     image: ghcr.io/td-org-uit-no/tdctl-api/tdctl-api:latest
     container_name: tdctl-api-production
+    restart: unless-stopped
     user: "prod_user:prod_user"
     build:
       context: ../
@@ -52,6 +53,7 @@ services:
       context: ../
       dockerfile: .docker/dockerfile.nginx
     image: nginx:latest
+    restart: unless-stopped
     ports:
       - "80:80"
       - "443:443"
@@ -64,6 +66,7 @@ services:
 
   certbot:
     image: certbot/certbot
+    restart: unless-stopped
     volumes:
       - ./certbot/data/certbot/conf:/etc/letsencrypt
       - ./certbot/data/certbot/www:/var/www/certbot
