@@ -208,6 +208,7 @@ class EventMailMessage(BaseModel):
     subject: str
     msg: str
     confirmedOnly: Optional[bool] = False
+    waitListOnly: Optional[bool] = False
 
 
 class EventDB(Event):
