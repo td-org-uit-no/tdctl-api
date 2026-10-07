@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "8b477d33431032a349712d92479bcddf0e940d48a5c05c41513ec3c4fd68b120"
+            "sha256": "9292d18544288fda123cd1d4fe5d2312b0276dba6697989ae437c7d2ac1fd6f3"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -847,12 +847,12 @@
         },
         "fpdf2": {
             "hashes": [
-                "sha256:3a2c6699c39b23b786fc6ad9fc3de5432e59f6b6383bb9ab4ce1f994a5f3e762",
-                "sha256:951e26290d0fc6ab4582b0d0bbacb64716fecef0f2b9223f9178c90ec4321af7"
+                "sha256:5b0b3786f5236a2b3cc83c1fee567df17ddd314f8c4e13d820d8f09b617ab4f0",
+                "sha256:6e1d94af6d6311950a23dec7fb5fc84b000203eb59aee8e76c1e701b12a14976"
             ],
             "index": "pypi",
-            "markers": "python_version >= '3.7'",
-            "version": "==2.8.2"
+            "markers": "python_version >= '3.10'",
+            "version": "==2.8.9"
         },
         "google-api-core": {
             "hashes": [
@@ -1818,15 +1818,6 @@
             ],
             "markers": "python_version >= '3.10'",
             "version": "==1.2.4"
-        },
-        "python-multipart": {
-            "hashes": [
-                "sha256:2b2cd894c83d21bf49d702499531c7bafd057d730c201782048f7945d82de155",
-                "sha256:7340bef99a7e0032613f56dc36027b959fd3b30a787ed62d310e951f7c3a3a58"
-            ],
-            "index": "pypi",
-            "markers": "python_version >= '3.10'",
-            "version": "==1.2.2"
         },
         "python-multipart": {
             "hashes": [
