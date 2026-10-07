@@ -1,29 +1,38 @@
 from typing import Dict
 from fastapi import HTTPException
 from uuid import UUID
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from pymongo import UpdateOne
 from pymongo.collection import Collection
 
-from app.models import Event, EventDB, EventUserView, Role
+from app.models import Event, EventDB, EventMemberView, EventUserView, Role
 
 import asyncio
 
 lock = asyncio.Lock()
 
+# matches the client's late-cancellation window in EventButton.tsx
+CANCELLATION_WINDOW_HOURS = 24
 
-def public_event_response(event, token):
-    """
-    Shape an event for the caller.
 
-    Admins get the full event document. Everyone else gets only the fields the
-    public event page shows, so that things like the host's private email
-    address, the registered penalties and the register id stay internal.
+def within_cancellation_window(event) -> bool:
     """
-    if token and token.role == Role.admin:
-        return Event.model_validate(event)
-    return EventUserView.model_validate(event)
+    True when the event is inside the late-cancellation window.
+
+    Uses abs() to mirror the client's check (EventButton.tsx uses Math.abs), so
+    both sides agree on which events are "too close to cancel". Outside the
+    window the UI never displays the contact address, so we don't send it.
+
+    Note this is deliberately a **±24h** window around the start, not a
+    pre-event one: the client's Math.abs makes it symmetric, and the modal does
+    still render for a joined event shortly after it starts. A tz-aware date
+    fails closed rather than raising.
+    """
+    starts_at = event.get("date")
+    if not isinstance(starts_at, datetime) or starts_at.tzinfo is not None:
+        return False
+    return abs(starts_at - datetime.now()) < timedelta(hours=CANCELLATION_WINDOW_HOURS)
 
 def get_event_or_404(db, eid: str):
     event = db.events.find_one({'eid': UUID(eid)})
@@ -32,6 +41,25 @@ def get_event_or_404(db, eid: str):
         raise HTTPException(404, "Event could not be found")
 
     return EventDB.model_validate(event).model_dump()
+
+
+def public_event_response(event, token):
+    """
+    Shape an event for the caller.
+
+    - admin            -> the full event document
+    - logged-in member -> the public fields plus contactEmail, but only inside
+                          the late-cancellation window
+    - anonymous        -> the public fields only
+
+    Everything else (the host's private address, the registered penalties, the
+    register id) stays internal.
+    """
+    if token and token.role == Role.admin:
+        return Event.model_validate(event)
+    if token and within_cancellation_window(event):
+        return EventMemberView.model_validate(event)
+    return EventUserView.model_validate(event)
 
 
 async def penalize(db, uid: UUID):

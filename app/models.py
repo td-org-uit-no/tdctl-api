@@ -142,6 +142,8 @@ class Participant(BaseModel):
     # indicate if participant has recieved an confirmation mail
     confirmed: Optional[bool] = None
     attended: Optional[bool] = None
+    # set once the participant has been told they are on the waiting list
+    waitListNotified: Optional[bool] = None
 
 
 class ParticipantPosUpdate(BaseModel):
@@ -173,11 +175,26 @@ class EventInput(BaseModel):
     confirmed: Optional[bool] = None
 
 
+class EventCreate(EventInput):
+    # Who participants should contact about this event. Admins set it; it only
+    # travels to non-admins inside the late-cancellation window (EventMemberView)
+    # and inside the emails we send.
+    contactEmail: Optional[EmailStr] = None
+
+
 class EventUserView(EventInput):
     eid: UUID4
 
 
-class Event(EventUserView):
+class EventMemberView(EventUserView):
+    # The event's contact address.
+    # Only ever sent to a logged-in caller, and only while the event is inside
+    # the late-cancellation window — that modal is the only place the UI shows
+    # it, so there is no reason to hand it out at any other time.
+    contactEmail: Optional[EmailStr] = None
+
+
+class Event(EventMemberView):
     # The TD member responsible for the event
     host: EmailStr
     # Collects all user penalties registered, ensuring only one penalty is given per event
@@ -190,6 +207,7 @@ class EventUpdate(BaseModel):
     title: Optional[str] = None
     date: Optional[datetime] = None
     address: Optional[str] = None
+    contactEmail: Optional[EmailStr] = None
     description: Optional[str] = None
     maxParticipants: Optional[int] = None
     public: Optional[bool] = None
@@ -208,6 +226,7 @@ class EventMailMessage(BaseModel):
     subject: str
     msg: str
     confirmedOnly: Optional[bool] = False
+    waitListOnly: Optional[bool] = False
 
 
 class EventDB(Event):
