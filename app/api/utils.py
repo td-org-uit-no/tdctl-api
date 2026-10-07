@@ -6,11 +6,24 @@ from datetime import datetime
 from pymongo import UpdateOne
 from pymongo.collection import Collection
 
-from app.models import EventDB
+from app.models import Event, EventDB, EventUserView, Role
 
 import asyncio
 
 lock = asyncio.Lock()
+
+
+def public_event_response(event, token):
+    """
+    Shape an event for the caller.
+
+    Admins get the full event document. Everyone else gets only the fields the
+    public event page shows, so that things like the host's private email
+    address, the registered penalties and the register id stay internal.
+    """
+    if token and token.role == Role.admin:
+        return Event.model_validate(event)
+    return EventUserView.model_validate(event)
 
 def get_event_or_404(db, eid: str):
     event = db.events.find_one({'eid': UUID(eid)})

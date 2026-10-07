@@ -1073,3 +1073,56 @@ def test_get_qr(client):
     # Should now get qr document
     response = client.get(f'/api/event/{eid}/qr')
     assert response.status_code == 200
+
+
+def test_public_event_response_shape(client):
+    host_only_keys = {"host", "registeredPenalties", "register_id"}
+    public_keys = {"title", "eid"}
+
+    # create an upcoming event so the unauthenticated checks are not vacuous
+    client_login(client, admin_member["email"], admin_member["password"])
+    response = client.post("/api/event/", json=new_event)
+    assert response.status_code == 200
+
+    # --- unauthenticated ---
+    client.cookies.clear()
+
+    response = client.get("/api/event/upcoming")
+    assert response.status_code == 200
+    upcoming = response.json()
+    assert len(upcoming) >= 1
+    for event in upcoming:
+        assert host_only_keys.isdisjoint(event.keys())
+        assert public_keys.issubset(event.keys())
+
+    response = client.get("/api/event/past-events")
+    assert response.status_code == 200
+    past = response.json()
+    assert len(past) >= 1
+    for event in past:
+        assert host_only_keys.isdisjoint(event.keys())
+        assert public_keys.issubset(event.keys())
+
+    # --- positive control: admin sees the full event shape ---
+    client_login(client, admin_member["email"], admin_member["password"])
+
+    response = client.get("/api/event/upcoming")
+    assert response.status_code == 200
+    upcoming_admin = response.json()
+    assert len(upcoming_admin) >= 1
+    for event in upcoming_admin:
+        assert host_only_keys.issubset(event.keys())
+        assert public_keys.issubset(event.keys())
+
+    response = client.get("/api/event/past-events")
+    assert response.status_code == 200
+    past_admin = response.json()
+    assert len(past_admin) >= 1
+    for event in past_admin:
+        assert host_only_keys.issubset(event.keys())
+        assert public_keys.issubset(event.keys())
+
+
+# ---------------------------------------------------------------------------
+# contactEmail is admin-only: it must never reach a non-admin response
+# ---------------------------------------------------------------------------
