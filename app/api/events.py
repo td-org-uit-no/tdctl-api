@@ -12,7 +12,7 @@ from app.utils.validation import validate_image_file_type, validate_uuid
 from ..auth_helpers import authorize, authorize_admin, optional_authentication
 from ..db import get_database, get_image_path, get_qr_path, get_export_path
 from ..models import *
-from .utils import get_event_or_404, penalize
+from .utils import get_event_or_404, penalize, public_event_response
 import pandas as pd
 from .mail import send_mail
 from ..models import MailPayload
@@ -90,7 +90,7 @@ def get_upcoming_events(request: Request, token: AccessTokenPayload = Depends(op
 
     upcoming_events = db.events.find(search_filter)
 
-    return [Event.model_validate(event) for event in upcoming_events]
+    return [public_event_response(event, token) for event in upcoming_events]
 
 
 @router.get('/past-events/count')
@@ -151,7 +151,7 @@ def get_past_events(request: Request, token: AccessTokenPayload = Depends(option
     if not res:
         raise HTTPException(500)
 
-    return [Event.model_validate(event) for event in res]
+    return [public_event_response(event, token) for event in res]
 
 
 @router.get('/joined-events')
