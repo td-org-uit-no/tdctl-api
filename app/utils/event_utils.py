@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime
 from uuid import UUID
 from fastapi import HTTPException
@@ -128,26 +129,73 @@ def num_of_confirmed_participants(participants):
     return sum(p["confirmed"] == True for p in participants)
 
 
-def get_default_confirmation(event):
-    with open("./app/assets/mails/event_confirmation.txt", 'r') as mail_content:
+def num_of_waiting_list_participants(participants):
+    return sum(p.get("confirmed") != True for p in participants)
+
+
+def render_mail_template(template_file, event):
+    with open(f"./app/assets/mails/{template_file}", 'r') as mail_content:
         content = mail_content.read().replace(
             "$EVENT_NAME$", event['title'])
         content = content.replace(
             "$DATE$", event['date'].strftime("%d %B, %Y"))
         content = content.replace("$TIME$", event['date'].strftime("%H:%M"))
         content = content.replace("$LOCATION$", event['address'])
+        # The event's own contact address, falling back to the org address
+        content = content.replace(
+            "$CONTACT$", event.get('contactEmail') or "post@td-uit.no")
 
         return content
+
+
+def get_default_confirmation(event):
+    return render_mail_template("event_confirmation.txt", event)
+
+
+def get_default_waitlist_mail(event):
+    return render_mail_template("event_waitlist.txt", event)
 
 
 def send_emails(mailing_list, subject, content):
     """
     Send emails to addresses in mailing list with given subject and content.
+
+    Each address is attempted on its own: one failed send (a Google hiccup, a
+    rate limit) must not stop the rest of the list. Returns the addresses the
+    mail was actually sent for.
     """
+    sent = []
     for address in mailing_list:
-        email = MailPayload(
-            to=[address],
-            subject=subject,
-            content=content
-        )
-        send_mail(email)
+        try:
+            email = MailPayload(
+                to=[address],
+                subject=subject,
+                content=content
+            )
+            send_mail(email)
+            sent.append(address)
+        except Exception as error:
+            logging.error(f"Could not send mail to {address}: {error}")
+    return sent
+
+
+def send_waitlist_emails(db, eid, mailing_list, subject, content):
+    """
+    Mail the waiting list, then record who was actually reached.
+
+    Marking happens after the send, so anyone whose mail failed stays unmarked
+    and a later confirmation round can still tell them, instead of the database
+    claiming they were notified when they never were.
+    """
+    sent = send_emails(mailing_list, subject, content)
+    if not sent:
+        return
+    db.events.update_many(
+        {"eid": eid},
+        {"$set": {"participants.$[element].waitListNotified": True}},
+        # the confirmed check matters when two participant rows share an address
+        array_filters=[{
+            "element.email": {"$in": sent},
+            "element.confirmed": {"$ne": True},
+        }],
+    )

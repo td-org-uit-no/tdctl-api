@@ -12,7 +12,7 @@ from app.utils.validation import validate_image_file_type, validate_uuid
 from ..auth_helpers import authorize, authorize_admin, optional_authentication
 from ..db import get_database, get_image_path, get_qr_path, get_export_path
 from ..models import *
-from .utils import get_event_or_404, penalize, public_event_response
+from .utils import get_event_or_404, penalize, public_event_response, within_cancellation_window
 import pandas as pd
 from .mail import send_mail
 from ..models import MailPayload
@@ -27,7 +27,7 @@ lock = asyncio.Lock()
 
 
 @router.post('/')
-def create_event(request: Request, newEvent: EventInput, token: AccessTokenPayload = Depends(authorize_admin)):
+def create_event(request: Request, newEvent: EventCreate, token: AccessTokenPayload = Depends(authorize_admin)):
     # TODO better format handling and date date-time handling
     db = get_database(request)
     # validates event date and registrationOpningDate
@@ -180,7 +180,7 @@ def get_joined_events(request: Request, token: AccessTokenPayload = Depends(auth
     ]
     res = db.events.aggregate(pipeline)
 
-    return [EventUserView.model_validate(e) for e in res]
+    return [public_event_response(e, token) for e in res]
 
 
 # custom uuid validation as eid: UUID will not allow users to copy eids into swagger as they are not formatted correctly
@@ -280,6 +280,9 @@ def get_event_by_id(request: Request, id: str, token: AccessTokenPayload = Depen
 
     if role == Role.admin:
         return EventDB.model_validate(event)
+
+    if token and within_cancellation_window(event):
+        return EventMemberView.model_validate(event)
 
     return EventUserView.model_validate(event)
 
@@ -596,8 +599,15 @@ async def send_notification_mail(request: Request, id: str, m: EventMailMessage,
     if len(event["participants"]) == 0:
         raise HTTPException(400, "No participants in event")
 
+    if m.confirmedOnly and m.waitListOnly:
+        raise HTTPException(
+            400, "Cannot send to confirmed and waiting list at the same time")
+
     if m.confirmedOnly and num_of_confirmed_participants(event["participants"]) == 0:
         raise HTTPException(400, "No confirmed participants in event")
+
+    if m.waitListOnly and num_of_waiting_list_participants(event["participants"]) == 0:
+        raise HTTPException(400, "No participants on the waiting list")
 
     if len(m.subject) > 50:
         raise HTTPException(400, "Email subject is too long")
@@ -605,15 +615,20 @@ async def send_notification_mail(request: Request, id: str, m: EventMailMessage,
     if len(m.msg) > 5000:
         raise HTTPException(400, "Email message is too long")
 
+    # The recipient filter must be applied before $group. $group collapses every
+    # participant into a single {_id: email} document, so matching on
+    # participants.confirmed after it never matches anything.
     pipeline = [
         {"$match": {"eid": event["eid"]}},
         {"$unwind": {"path": "$participants"}},
-        {"$group": {"_id": "$participants.email"}},
     ]
 
-    # Only send mail to confirmed participants if specified
     if m.confirmedOnly:
-        pipeline += [{"$match": {"participants.confirmed": True}}]
+        pipeline.append({"$match": {"participants.confirmed": True}})
+    if m.waitListOnly:
+        pipeline.append({"$match": {"participants.confirmed": {"$ne": True}}})
+
+    pipeline.append({"$group": {"_id": "$participants.email"}})
 
     participantsToMail = db.events.aggregate(pipeline)
     mailingList = [p["_id"] for p in participantsToMail]
@@ -695,10 +710,25 @@ async def confirmation(request: Request, id: str, m: EventConfirmMessage, backgr
         # Use default confirmation email if no message is supplied
         content = m.msg if m.msg != None else get_default_confirmation(event)
 
+        # Everyone who did not get a spot in this round is on the waiting list.
+        # Anyone already told stays quiet, so repeat rounds (people dropping out,
+        # capacity being raised) don't mail the same people again.
+        waitingList = [
+            p["email"] for p in event["participants"]
+            if p.get("confirmed") != True
+            and not p.get("waitListNotified")
+            and p["email"] not in mailingList
+        ]
+
         # Send email to all participants
         if request.app.config.ENV == 'production':
             background_tasks.add_task(
                 send_emails, mailingList, f"Bekreftelse {event['title']}", content)
+            if waitingList:
+                # sends, then marks only whoever was actually reached
+                background_tasks.add_task(
+                    send_waitlist_emails, db, event["eid"], waitingList,
+                    f"Venteliste {event['title']}", get_default_waitlist_mail(event))
 
         return Response(status_code=200)
 

@@ -1,8 +1,11 @@
 import os
 import json
+import re
 from uuid import UUID, uuid4
+import app.api.events as events_module
+import app.utils.event_utils as event_utils
 from app.db import get_test_db
-from app.utils.event_utils import num_of_confirmed_participants, num_of_deprioritized_participants
+from app.utils.event_utils import num_of_confirmed_participants, num_of_deprioritized_participants, get_default_waitlist_mail
 from tests.conftest import client_login
 from datetime import datetime, timedelta
 from tests.test_endpoints.test_members import payload
@@ -1075,6 +1078,683 @@ def test_get_qr(client):
     assert response.status_code == 200
 
 
+@admin_required("/api/event/", "post")
+def test_create_event_contact_email(client):
+    client_login(client, admin_member["email"], admin_member["password"])
+
+    # omitted -> defaults to None and still works (back-compat)
+    response = client.post("/api/event/", json=new_event)
+    assert response.status_code == 200
+    eid = response.json()["eid"]
+    response = client.get(f"/api/event/{eid}")
+    assert response.status_code == 200
+    assert response.json()["contactEmail"] is None
+
+    # provided -> survives create -> read
+    contact = "contact@example.com"
+    response = client.post(
+        "/api/event/", json={**new_event, "contactEmail": contact})
+    assert response.status_code == 200
+    eid = response.json()["eid"]
+
+    response = client.get(f"/api/event/{eid}")
+    assert response.status_code == 200
+    assert response.json()["contactEmail"] == contact
+
+    event = db.events.find_one({'eid': UUID(eid)})
+    assert event and event["contactEmail"] == contact
+
+    # invalid email is rejected by validation
+    response = client.post(
+        "/api/event/", json={**new_event, "contactEmail": "not-an-email"})
+    assert response.status_code == 422
+
+
+@admin_required("/api/event/{uuid}", "put")
+def test_update_event_contact_email(client):
+    eid = test_events[0]["eid"]
+    client_login(client, admin_member["email"], admin_member["password"])
+
+    contact = "updated-contact@example.com"
+    response = client.put(f"/api/event/{eid}", json={"contactEmail": contact})
+    assert response.status_code == 200
+
+    response = client.get(f"/api/event/{eid}")
+    assert response.status_code == 200
+    assert response.json()["contactEmail"] == contact
+
+    event = db.events.find_one({'eid': UUID(eid)})
+    assert event and event["contactEmail"] == contact
+
+
+@admin_required("/api/event/{uuid}", "put")
+def test_update_event_contact_email_can_be_cleared(client):
+    eid = test_events[0]["eid"]
+    client_login(client, admin_member["email"], admin_member["password"])
+
+    contact = "clear-me@example.com"
+    response = client.put(f"/api/event/{eid}", json={"contactEmail": contact})
+    assert response.status_code == 200
+    response = client.get(f"/api/event/{eid}")
+    assert response.status_code == 200
+    assert response.json()["contactEmail"] == contact
+
+    # an explicit null clears the optional field, since model_dump(exclude_unset=True)
+    # passes it through to the $set update
+    response = client.put(f"/api/event/{eid}", json={"contactEmail": None})
+    assert response.status_code == 200
+    response = client.get(f"/api/event/{eid}")
+    assert response.status_code == 200
+    assert response.json()["contactEmail"] is None
+    event = db.events.find_one({'eid': UUID(eid)})
+    assert event and event.get("contactEmail") is None
+
+    # omitting the field in a later update leaves the stored value untouched
+    response = client.put(f"/api/event/{eid}", json={"contactEmail": contact})
+    assert response.status_code == 200
+    response = client.put(f"/api/event/{eid}", json={"title": "changed title"})
+    assert response.status_code == 200
+    response = client.get(f"/api/event/{eid}")
+    assert response.status_code == 200
+    assert response.json()["contactEmail"] == contact
+    event = db.events.find_one({'eid': UUID(eid)})
+    assert event and event["contactEmail"] == contact
+
+
+# ---------------------------------------------------------------------------
+# POST /api/event/{id}/mail recipient selection
+# ---------------------------------------------------------------------------
+
+
+def _capture_emails(monkeypatch, client):
+    """Force the production mail code path and capture recipient lists.
+
+    ``send_emails`` is only scheduled when config.ENV == 'production', so we
+    swap in a recorder and flip the flag. This asserts on the *computed*
+    recipient set without sending anything.
+    """
+    sent = []
+
+    def fake_send_emails(mailing_list, subject, content):
+        sent.append(
+            {"to": list(mailing_list), "subject": subject, "content": content})
+
+    monkeypatch.setattr(events_module, "send_emails", fake_send_emails)
+    monkeypatch.setattr(client.app.config, "ENV", "production")
+    return sent
+
+
+def _capture_mail_payloads(monkeypatch, client, env="production", fail_for=None):
+    """Capture the real MailPayload objects by stubbing only the transport.
+
+    ``send_mail`` is patched one level below ``send_emails`` and
+    ``send_waitlist_emails``, so both run for real: this is what verifies
+    payload construction, per-address error isolation and delivery-based
+    marking. ``fail_for`` simulates a failed send for those addresses; ``env``
+    selects the (non-)production code path.
+
+    Returns ``(payloads, attempted)`` - the payloads that would go on the wire
+    and every address the transport was called for (including failed ones).
+    """
+    payloads = []
+    attempted = []
+    fail_for = set(fail_for or ())
+
+    def fake_send_mail(payload):
+        address = payload.to[0]
+        attempted.append(address)
+        if address in fail_for:
+            raise RuntimeError(f"simulated send failure for {address}")
+        payloads.append(payload)
+
+    monkeypatch.setattr(event_utils, "send_mail", fake_send_mail)
+    monkeypatch.setattr(client.app.config, "ENV", env)
+    return payloads, attempted
+
+
+def _participant_row(email, confirmed):
+    return {
+        "id": uuid4(), "realName": "Test Person", "email": email,
+        "classof": "2023", "phone": None, "role": "member",
+        "food": False, "transportation": False, "dietaryRestrictions": "",
+        "submitDate": datetime.now(), "penalty": 0,
+        "confirmed": confirmed, "attended": None,
+    }
+
+
+def test_send_waitlist_emails_flags_only_the_unconfirmed_row_sharing_an_address(
+        client, monkeypatch):
+    """members.email has no unique index, so two participant rows can share one.
+
+    Only the unconfirmed row is on the waiting list; the confirmed row must not
+    be recorded as notified just because it happens to share the address.
+    """
+    monkeypatch.setattr(event_utils, "send_mail", lambda payload: None)
+
+    eid = test_events[0]["eid"]
+    shared, waiting = "shared@test.com", "waiting@test.com"
+    db.events.update_one({'eid': UUID(eid)}, {"$set": {"participants": [
+        _participant_row(shared, confirmed=True),
+        _participant_row(waiting, confirmed=False),
+    ]}})
+
+    event_utils.send_waitlist_emails(
+        db, UUID(eid), [shared, waiting], "Emne", "Innhold")
+
+    event = db.events.find_one({'eid': UUID(eid)})
+    rows = {}
+    for p in event["participants"]:
+        rows.setdefault(p["email"], []).append(p)
+
+    assert rows[shared][0]["confirmed"] is True
+    assert not rows[shared][0].get("waitListNotified"), (
+        "a confirmed participant must not be flagged as notified")
+    assert rows[waiting][0].get("waitListNotified") == True
+
+
+def _prepare_confirmable(client, n, **extra):
+    """Make the first seeded event confirmable, without confirming it yet."""
+    eid = test_events[0]["eid"]
+    body = {"date": f"{future_time_str}", "public": True,
+            "registrationOpeningDate": None, "maxParticipants": n}
+    body.update(extra)
+    response = client.put(f"/api/event/{eid}", json=body)
+    assert response.status_code == 200
+    return eid
+
+
+def _confirm_first_n(client, n, **extra):
+    """Make the first seeded event confirmable and confirm its first n participants."""
+    eid = _prepare_confirmable(client, n, **extra)
+    response = client.post(f'/api/event/{eid}/confirm', json={"msg": None})
+    assert response.status_code == 200
+    return eid
+
+
+def _recipient_sets(eid):
+    event = db.events.find_one({'eid': UUID(eid)})
+    assert event
+    confirmed = {p["email"] for p in event["participants"]
+                 if p.get("confirmed") == True}
+    waiting = {p["email"] for p in event["participants"]
+               if p.get("confirmed") != True}
+    everyone = {p["email"] for p in event["participants"]}
+    return confirmed, waiting, everyone
+
+
+def test_send_notification_mail_confirmed_only_recipients(client, monkeypatch):
+    client_login(client, admin_member["email"], admin_member["password"])
+    eid = _confirm_first_n(client, 2)
+
+    confirmed, waiting, everyone = _recipient_sets(eid)
+    assert len(confirmed) == 2
+    assert len(waiting) == 3
+    assert len(everyone) == 5
+
+    sent = _capture_emails(monkeypatch, client)
+    response = client.post(
+        f'/api/event/{eid}/mail',
+        json={'subject': 'confirmed only', 'msg': 'msg', 'confirmedOnly': True})
+    assert response.status_code == 202
+    assert len(sent) == 1
+    # the $match must be applied before $group; the buggy version mailed nobody
+    assert set(sent[0]["to"]) == confirmed
+    assert set(sent[0]["to"]) != waiting
+
+
+def test_send_notification_mail_waitlist_only_recipients(client, monkeypatch):
+    client_login(client, admin_member["email"], admin_member["password"])
+    eid = _confirm_first_n(client, 2)
+
+    confirmed, waiting, everyone = _recipient_sets(eid)
+    assert len(waiting) == 3
+
+    sent = _capture_emails(monkeypatch, client)
+    response = client.post(
+        f'/api/event/{eid}/mail',
+        json={'subject': 'waitlist only', 'msg': 'msg', 'waitListOnly': True})
+    assert response.status_code == 202
+    assert len(sent) == 1
+    assert set(sent[0]["to"]) == waiting
+    assert set(sent[0]["to"]) != confirmed
+
+
+def test_send_notification_mail_without_flags_sends_to_everyone(client, monkeypatch):
+    client_login(client, admin_member["email"], admin_member["password"])
+    eid = _confirm_first_n(client, 2)
+
+    _, _, everyone = _recipient_sets(eid)
+
+    sent = _capture_emails(monkeypatch, client)
+    response = client.post(
+        f'/api/event/{eid}/mail',
+        json={'subject': 'everyone', 'msg': 'msg',
+              'confirmedOnly': False, 'waitListOnly': False})
+    assert response.status_code == 202
+    assert len(sent) == 1
+    assert set(sent[0]["to"]) == everyone
+
+
+def test_send_notification_mail_omitted_flags_back_compat(client, monkeypatch):
+    client_login(client, admin_member["email"], admin_member["password"])
+    eid = _confirm_first_n(client, 2)
+
+    confirmed, _, everyone = _recipient_sets(eid)
+    sent = _capture_emails(monkeypatch, client)
+
+    # both flags entirely omitted (payload only has the pre-existing fields)
+    response = client.post(
+        f'/api/event/{eid}/mail', json={'subject': 'all', 'msg': 'msg'})
+    assert response.status_code == 202
+    assert set(sent[0]["to"]) == everyone
+
+    # waitListOnly omitted while confirmedOnly is supplied still works
+    sent.clear()
+    response = client.post(
+        f'/api/event/{eid}/mail',
+        json={'subject': 'conf', 'msg': 'msg', 'confirmedOnly': True})
+    assert response.status_code == 202
+    assert set(sent[0]["to"]) == confirmed
+
+
+def test_send_notification_mail_both_flags_rejected(client):
+    client_login(client, admin_member["email"], admin_member["password"])
+    eid = _confirm_first_n(client, 2)
+
+    response = client.post(
+        f'/api/event/{eid}/mail',
+        json={'subject': 'both', 'msg': 'msg',
+              'confirmedOnly': True, 'waitListOnly': True})
+    assert response.status_code == 400
+    assert response.json()["detail"] == \
+        "Cannot send to confirmed and waiting list at the same time"
+
+
+def test_send_notification_mail_waitlist_only_without_waitlist(client):
+    client_login(client, admin_member["email"], admin_member["password"])
+
+    # maxParticipants None confirms every joined participant -> empty waiting list
+    eid = test_events[0]["eid"]
+    response = client.put(
+        f"/api/event/{eid}",
+        json={"date": f"{future_time_str}", "public": True,
+              "registrationOpeningDate": None, "maxParticipants": None})
+    assert response.status_code == 200
+    response = client.post(f'/api/event/{eid}/confirm', json={"msg": None})
+    assert response.status_code == 200
+
+    confirmed, waiting, everyone = _recipient_sets(eid)
+    assert waiting == set()
+    assert confirmed == everyone
+
+    response = client.post(
+        f'/api/event/{eid}/mail',
+        json={'subject': 'waitlist', 'msg': 'msg', 'waitListOnly': True})
+    assert response.status_code == 400
+    assert response.json()["detail"] == "No participants on the waiting list"
+
+
+# ---------------------------------------------------------------------------
+# POST /api/event/{id}/confirm waiting-list notification
+# ---------------------------------------------------------------------------
+
+
+def test_confirm_event_sends_waitlist_mail(client, monkeypatch):
+    """Happy path: real MailPayloads for the confirmations and the waitlist."""
+    client_login(client, admin_member["email"], admin_member["password"])
+    payloads, attempted = _capture_mail_payloads(monkeypatch, client)
+
+    eid = _confirm_first_n(client, 2)
+
+    confirmed, waiting, _ = _recipient_sets(eid)
+    assert len(confirmed) == 2
+    assert len(waiting) == 3
+
+    event = db.events.find_one({'eid': UUID(eid)})
+    assert event
+    title = event["title"]
+    confirmation_mails = [
+        p for p in payloads if p.subject == f"Bekreftelse {title}"]
+    waitlist_mails = [
+        p for p in payloads if p.subject == f"Venteliste {title}"]
+
+    # exactly two confirmation mails and three waitlist mails, no others
+    assert len(payloads) == 5
+    assert len(confirmation_mails) == 2
+    assert len(waitlist_mails) == 3
+
+    # each real payload is addressed to exactly one person
+    assert {p.to[0] for p in confirmation_mails} == confirmed
+    assert {p.to[0] for p in waitlist_mails} == waiting
+    for p in payloads:
+        assert len(p.to) == 1
+        assert p.content
+        assert p.sent_by  # defaulted, never silently missing
+        assert p.sent_by == "no-reply@td-uit.no"
+
+    # every participant was actually attempted through the transport
+    assert set(attempted) == confirmed | waiting
+
+
+def test_confirm_waitlist_mail_is_rendered(client, monkeypatch):
+    """The waitlist body is a genuinely rendered mail, no placeholder left."""
+    client_login(client, admin_member["email"], admin_member["password"])
+    payloads, _ = _capture_mail_payloads(monkeypatch, client)
+
+    eid = _confirm_first_n(client, 2)
+
+    event = db.events.find_one({'eid': UUID(eid)})
+    assert event
+    waitlist_mails = [
+        p for p in payloads if p.subject.startswith("Venteliste")]
+    assert len(waitlist_mails) == 3
+
+    for mail in waitlist_mails:
+        # byte-for-byte the rendered template, not a stub's idea of it
+        assert mail.content == get_default_waitlist_mail(event)
+        assert event["title"] in mail.content
+        # no $PLACEHOLDER$ may survive rendering
+        assert re.findall(r"\$[A-Z_]+\$", mail.content) == []
+        # no contactEmail on this event -> the org fallback address
+        assert "post@td-uit.no" in mail.content
+        assert "$CONTACT$" not in mail.content
+
+
+def test_confirm_waitlist_mail_uses_event_contact_email(client, monkeypatch):
+    """A configured contactEmail replaces the org fallback in the body."""
+    client_login(client, admin_member["email"], admin_member["password"])
+    contact = "arrangement-kontakt@example.com"
+    payloads, _ = _capture_mail_payloads(monkeypatch, client)
+
+    eid = _confirm_first_n(client, 2, contactEmail=contact)
+
+    waitlist_mails = [
+        p for p in payloads if p.subject.startswith("Venteliste")]
+    assert len(waitlist_mails) == 3
+    for mail in waitlist_mails:
+        assert contact in mail.content
+        assert "post@td-uit.no" not in mail.content
+        assert re.findall(r"\$[A-Z_]+\$", mail.content) == []
+
+
+def test_confirm_marks_waitlist_notified_flag(client, monkeypatch):
+    """The waitListNotified flag persists on exactly the people we mailed."""
+    client_login(client, admin_member["email"], admin_member["password"])
+    _capture_mail_payloads(monkeypatch, client)
+
+    eid = _confirm_first_n(client, 2)
+    confirmed, waiting, everyone = _recipient_sets(eid)
+    assert len(confirmed) == 2
+    assert len(waiting) == 3
+
+    event = db.events.find_one({'eid': UUID(eid)})
+    assert event
+    for p in event["participants"]:
+        if p["email"] in waiting:
+            assert p.get("waitListNotified") == True, (
+                f"{p['email']} was mailed the waiting list but is not flagged")
+        elif p["email"] in confirmed:
+            # confirmed people were never told they are on the waiting list
+            assert not p.get("waitListNotified"), (
+                f"confirmed participant {p['email']} is wrongly flagged")
+        else:
+            raise AssertionError(f"unexpected participant {p['email']}")
+    # sanity: the sets partition the participant list
+    assert confirmed | waiting == everyone
+
+
+def test_confirm_twice_does_not_remail_waiting_list(client, monkeypatch):
+    """A second confirmation round must not re-mail the still-waiting people."""
+    client_login(client, admin_member["email"], admin_member["password"])
+    payloads, _ = _capture_mail_payloads(monkeypatch, client)
+
+    # round one: 2 spots, 5 joined -> 2 confirmed, 3 waiting
+    eid = _confirm_first_n(client, 2)
+    confirmed_1, waiting_1, _ = _recipient_sets(eid)
+    assert len(confirmed_1) == 2
+    assert len(waiting_1) == 3
+    assert len(payloads) == 5
+    first_round_waitlist = {
+        p.to[0] for p in payloads if p.subject.startswith("Venteliste")}
+    assert first_round_waitlist == waiting_1
+
+    # make a second round possible by opening one more spot
+    response = client.put(f"/api/event/{eid}", json={"maxParticipants": 3})
+    assert response.status_code == 200
+
+    payloads.clear()
+    response = client.post(f'/api/event/{eid}/confirm', json={"msg": None})
+    assert response.status_code == 200
+
+    confirmed_2, waiting_2, _ = _recipient_sets(eid)
+    assert len(confirmed_2) == 3
+    assert len(waiting_2) == 2
+
+    newly_confirmed = confirmed_2 - confirmed_1
+    assert len(newly_confirmed) == 1
+    # the only round-two mail is the confirmation to the promoted person
+    assert len(payloads) == 1
+    assert payloads[0].subject.startswith("Bekreftelse")
+    assert {payloads[0].to[0]} == newly_confirmed
+    assert all(not p.subject.startswith("Venteliste") for p in payloads)
+
+    round_two_recipients = {p.to[0] for p in payloads}
+    # nobody still on the waiting list was mailed again
+    assert waiting_2.isdisjoint(round_two_recipients)
+    # the round-one waitlist people who were not promoted were not touched
+    assert (first_round_waitlist - newly_confirmed).isdisjoint(
+        round_two_recipients)
+
+
+def test_confirm_tells_new_joiner_after_first_round(client, monkeypatch):
+    """Someone who joins after round one still gets the waiting-list mail."""
+    client_login(client, admin_member["email"], admin_member["password"])
+
+    # create the account while still on the test env: member creation sends a
+    # real mail under ENV == 'production' (missing SMTP -> 500)
+    response = client.post("/api/member/", json=payload)
+    assert response.status_code == 200
+
+    payloads, _ = _capture_mail_payloads(monkeypatch, client)
+
+    eid = _confirm_first_n(client, 2)
+    confirmed_1, waiting_1, _ = _recipient_sets(eid)
+    assert len(confirmed_1) == 2
+    assert len(waiting_1) == 3
+    told_round_one = {
+        p.to[0] for p in payloads if p.subject.startswith("Venteliste")}
+    assert told_round_one == waiting_1
+
+    # the brand-new participant joins only after the first confirm round, so it
+    # carries no waitListNotified flag
+    client_login(client, payload["email"], payload["password"])
+    response = client.post(f'/api/event/{eid}/join', json=joinEventPayload)
+    assert response.status_code == 200
+
+    # open one spot so a second round actually happens
+    client_login(client, admin_member["email"], admin_member["password"])
+    response = client.put(f"/api/event/{eid}", json={"maxParticipants": 3})
+    assert response.status_code == 200
+
+    payloads.clear()
+    response = client.post(f'/api/event/{eid}/confirm', json={"msg": None})
+    assert response.status_code == 200
+
+    confirmed_2, waiting_2, _ = _recipient_sets(eid)
+    assert payload["email"] in waiting_2, \
+        "new joiner should still be on the waiting list"
+    newly_confirmed = confirmed_2 - confirmed_1
+    assert len(newly_confirmed) == 1
+
+    waitlist_mails = [
+        p for p in payloads if p.subject.startswith("Venteliste")]
+    assert len(waitlist_mails) == 1
+    # only the newcomer (never told) is mailed; the already-notified are skipped
+    assert waitlist_mails[0].to == [payload["email"]]
+    # the people still waiting after round two were all told in round one, so
+    # none of them may receive anything (the promoted one only gets a
+    # confirmation, and the newcomer is the single expected waitlist recipient)
+    assert (told_round_one - newly_confirmed).isdisjoint(
+        {p.to[0] for p in payloads})
+
+
+def test_confirm_waitlist_send_failure_is_isolated(client, monkeypatch):
+    """One failing waitlist send must not stop the others (the fixed bug)."""
+    client_login(client, admin_member["email"], admin_member["password"])
+
+    # prepare without confirming so we can pick a known waitlist member: the
+    # first two array positions get the spots, index 2 is on the waitlist
+    eid = _prepare_confirmable(client, 2)
+    prepared = db.events.find_one({'eid': UUID(eid)})
+    assert prepared
+    failing = prepared["participants"][2]["email"]
+
+    payloads, attempted = _capture_mail_payloads(
+        monkeypatch, client, fail_for={failing})
+
+    # spy on the real send_emails (resolved in event_utils by
+    # send_waitlist_emails) so its return value can be asserted directly
+    send_returns = []
+    real_send_emails = event_utils.send_emails
+
+    def spy_send_emails(mailing_list, subject, content):
+        result = real_send_emails(mailing_list, subject, content)
+        send_returns.append((list(mailing_list), list(result)))
+        return result
+
+    monkeypatch.setattr(event_utils, "send_emails", spy_send_emails)
+
+    response = client.post(f'/api/event/{eid}/confirm', json={"msg": None})
+    assert response.status_code == 200
+
+    confirmed, waiting, _ = _recipient_sets(eid)
+    assert failing in waiting
+
+    # exactly one send_emails call (the waitlist) and it returned only the
+    # addresses actually delivered
+    assert len(send_returns) == 1
+    mailed_list, delivered = send_returns[0]
+    assert set(mailed_list) == waiting
+    assert set(delivered) == waiting - {failing}
+
+    title = db.events.find_one({'eid': UUID(eid)})["title"]
+    waitlist_sent = {
+        p.to[0] for p in payloads if p.subject == f"Venteliste {title}"}
+
+    # the failing address was attempted but delivered nothing
+    assert failing in attempted
+    assert failing not in waitlist_sent
+    # every other address in the batch still got its own payload
+    assert waitlist_sent == waiting - {failing}
+    assert len(waitlist_sent) == 2
+    # the confirmation batch (a different list) was unaffected
+    assert {p.to[0] for p in payloads
+            if p.subject == f"Bekreftelse {title}"} == confirmed
+    assert set(attempted) == confirmed | waiting
+
+
+def test_confirm_marks_only_delivered_waitlist_recipients(client, monkeypatch):
+    """waitListNotified is delivery-based, so a failed send can be retried."""
+    client_login(client, admin_member["email"], admin_member["password"])
+
+    eid = _prepare_confirmable(client, 2)
+    prepared = db.events.find_one({'eid': UUID(eid)})
+    assert prepared
+    failing = prepared["participants"][2]["email"]
+
+    _capture_mail_payloads(monkeypatch, client, fail_for={failing})
+    response = client.post(f'/api/event/{eid}/confirm', json={"msg": None})
+    assert response.status_code == 200
+
+    confirmed, waiting, _ = _recipient_sets(eid)
+    event = db.events.find_one({'eid': UUID(eid)})
+    assert event
+    for p in event["participants"]:
+        if p["email"] == failing:
+            # the send failed, so the database must not claim it was notified
+            assert not p.get("waitListNotified"), (
+                "a recipient whose send failed must stay unmarked for retry")
+        elif p["email"] in waiting:
+            assert p.get("waitListNotified") == True, (
+                f"{p['email']} was delivered but is not flagged")
+        elif p["email"] in confirmed:
+            assert not p.get("waitListNotified")
+        else:
+            raise AssertionError(f"unexpected participant {p['email']}")
+    # exactly the delivered waitlist people are flagged
+    delivered = waiting - {failing}
+    flagged = {p["email"] for p in event["participants"]
+               if p.get("waitListNotified")}
+    assert flagged == delivered
+
+
+def test_confirm_everyone_no_waitlist_mail_or_flags(client, monkeypatch):
+    """When everyone gets a spot there is no waitlist mail and no flag."""
+    client_login(client, admin_member["email"], admin_member["password"])
+    payloads, _ = _capture_mail_payloads(monkeypatch, client)
+
+    # maxParticipants None confirms every joined participant
+    eid = _confirm_first_n(client, None)
+
+    _, waiting, everyone = _recipient_sets(eid)
+    assert waiting == set()
+    assert len(everyone) == 5
+
+    # only the five confirmations, no waitlist mail at all
+    assert len(payloads) == 5
+    assert all(p.subject.startswith("Bekreftelse") for p in payloads)
+    assert {p.to[0] for p in payloads} == everyone
+
+    event = db.events.find_one({'eid': UUID(eid)})
+    assert event
+    for p in event["participants"]:
+        assert not p.get("waitListNotified"), (
+            f"{p['email']} must not be flagged when there is no waitlist")
+
+
+def test_confirm_sends_nothing_outside_production(client, monkeypatch):
+    """ENV != 'production' builds no payloads and marks nobody (dev silent)."""
+    client_login(client, admin_member["email"], admin_member["password"])
+    payloads, attempted = _capture_mail_payloads(
+        monkeypatch, client, env="development")
+
+    eid = _confirm_first_n(client, 2)
+    confirmed, waiting, _ = _recipient_sets(eid)
+    assert len(confirmed) == 2
+    assert len(waiting) == 3
+
+    # the production gate short-circuits before any mail is constructed
+    assert payloads == []
+    assert attempted == []
+
+    event = db.events.find_one({'eid': UUID(eid)})
+    assert event
+    for p in event["participants"]:
+        assert not p.get("waitListNotified"), (
+            f"{p['email']} must not be flagged when no mail was sent")
+
+
+def test_confirm_subject_with_norwegian_characters(client, monkeypatch):
+    """Non-ASCII titles survive intact into both subjects and the bodies."""
+    client_login(client, admin_member["email"], admin_member["password"])
+    title = "Bærekraft og blåbær øl på åpen scene"
+    payloads, _ = _capture_mail_payloads(monkeypatch, client)
+
+    eid = _confirm_first_n(client, 2, title=title)
+
+    assert len(payloads) == 5
+    for mail in payloads:
+        assert title in mail.subject
+        assert title in mail.content
+    assert {p.subject for p in payloads} == {
+        f"Bekreftelse {title}", f"Venteliste {title}"}
+
+
+# ---------------------------------------------------------------------------
+# Public response shape (#326): public endpoints must not leak host-only data
+# ---------------------------------------------------------------------------
+
+
 def test_public_event_response_shape(client):
     host_only_keys = {"host", "registeredPenalties", "register_id"}
     public_keys = {"title", "eid"}
@@ -1126,3 +1806,99 @@ def test_public_event_response_shape(client):
 # ---------------------------------------------------------------------------
 # contactEmail is admin-only: it must never reach a non-admin response
 # ---------------------------------------------------------------------------
+
+
+def test_contact_email_visibility_follows_the_cancellation_window(client):
+    """contactEmail may only reach a caller who is both logged in AND inside the
+    24h late-cancellation window, because that modal is the only place the UI
+    ever shows it.
+
+    Sibling of test_public_event_response_shape, with a real positive control:
+    both events below actually store a contactEmail, so the "hidden" assertions
+    cannot pass vacuously.
+    """
+    contact = "arrangement-kontakt@example.com"
+    beyond_contact = "senere-kontakt@example.com"
+    beyond_time = datetime.now() + timedelta(hours=72)
+
+    # --- set up: one event inside the window, one outside ---
+    client_login(client, admin_member["email"], admin_member["password"])
+
+    response = client.post(
+        "/api/event/", json={**new_event, "contactEmail": contact})
+    assert response.status_code == 200
+    inside_eid = response.json()["eid"]
+
+    response = client.post("/api/event/", json={
+        **new_event,
+        "date": beyond_time.strftime("%Y-%m-%d %H:%M:%S"),
+        "contactEmail": beyond_contact,
+    })
+    assert response.status_code == 200
+    outside_eid = response.json()["eid"]
+
+    # sanity: both really are persisted, otherwise the assertions below are vacuous
+    assert db.events.find_one({'eid': UUID(inside_eid)})["contactEmail"] == contact
+    assert db.events.find_one(
+        {'eid': UUID(outside_eid)})["contactEmail"] == beyond_contact
+
+    # --- anonymous: never, on any endpoint ---
+    client.cookies.clear()
+
+    for path in ("/api/event/upcoming", "/api/event/past-events"):
+        response = client.get(path)
+        assert response.status_code == 200
+        payload = response.json()
+        assert len(payload) >= 1
+        for event in payload:
+            assert "contactEmail" not in event, event
+
+    for path in (f"/api/event/{inside_eid}", f"/api/event/{outside_eid}"):
+        response = client.get(path)
+        assert response.status_code == 200
+        assert "contactEmail" not in response.json(), response.json()
+
+    # --- logged-in member: only inside the window ---
+    client_login(client, regular_member["email"], regular_member["password"])
+
+    # #326 is about host/registeredPenalties/register_id too, not just contactEmail:
+    # a member must never see them, on any endpoint, whatever the window says.
+    host_only = {"host", "registeredPenalties", "register_id"}
+
+    response = client.get(f"/api/event/{inside_eid}")
+    assert response.status_code == 200
+    assert response.json()["contactEmail"] == contact
+    assert host_only.isdisjoint(response.json()), response.json()
+
+    response = client.get(f"/api/event/{outside_eid}")
+    assert response.status_code == 200
+    assert "contactEmail" not in response.json(), response.json()
+    assert host_only.isdisjoint(response.json()), response.json()
+
+    response = client.get("/api/event/upcoming")
+    assert response.status_code == 200
+    upcoming = response.json()
+    assert len(upcoming) >= 1
+    for event in upcoming:
+        assert host_only.isdisjoint(event), event
+
+    # a member gets contactEmail for in-window events (that is the rule), but
+    # never for events outside it — so the past list must carry none at all
+    response = client.get("/api/event/past-events")
+    assert response.status_code == 200
+    past = response.json()
+    assert len(past) >= 1
+    for event in past:
+        assert "contactEmail" not in event, event
+        assert host_only.isdisjoint(event), event
+
+    # --- admin: always, with or without the window ---
+    client_login(client, admin_member["email"], admin_member["password"])
+
+    response = client.get(f"/api/event/{inside_eid}")
+    assert response.status_code == 200
+    assert response.json()["contactEmail"] == contact
+
+    response = client.get(f"/api/event/{outside_eid}")
+    assert response.status_code == 200
+    assert response.json()["contactEmail"] == beyond_contact

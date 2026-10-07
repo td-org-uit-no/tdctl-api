@@ -1,0 +1,16 @@
+Hei,
+
+Du står på venteliste til $EVENT_NAME$.
+
+Dato: $DATE$
+Tidspunkt: $TIME$
+Lokasjon: $LOCATION$
+
+Vi gir deg beskjed så fort du får en ledig plass. Får du plass, må du svare innen fristen du får oppgitt, ellers går plassen videre til neste på listen.
+
+Kan du ikke delta likevel, meld deg av via nettsiden snarest. Da kan noen andre få plassen din.
+
+Har du spørsmål, ta kontakt med $CONTACT$.
+
+Mvh
+Tromsøstudentenes Dataforening
