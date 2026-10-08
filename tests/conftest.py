@@ -3,7 +3,7 @@ import os
 from app import config
 from pymongo import MongoClient
 from fastapi.testclient import TestClient
-from utils.seeding import seed_events, seed_members
+from utils.seeding import seed_events, seed_members, seed_committees
 
 import sys
 import os
@@ -39,6 +39,12 @@ def client(app):
         # important that test_members.json always has a penalized member
         seed_members(app.db, f"{test_seed_path}/test_members.json")
         seed_events(app.db, f"{test_seed_path}/test_events.json")
+        # Don't seed committee members in tests - let tests control membership
+        seed_committees(app.db, f"{test_seed_path}/test_committees.json", seed_members=False)
+
+        # Create indexes after seeding (since drop_database removed them)
+        app.db.committeeMembers.create_index([("committeeId", 1), ("userId", 1)], unique=True)
+
         yield client
 
 
