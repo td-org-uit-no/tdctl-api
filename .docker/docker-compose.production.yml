@@ -52,7 +52,8 @@ services:
     build:
       context: ../
       dockerfile: .docker/dockerfile.nginx
-    image: nginx:latest
+      pull: true
+    image: tdctl-nginx:latest
     restart: unless-stopped
     ports:
       - "80:80"
