@@ -598,6 +598,9 @@ async def send_notification_mail(request: Request, id: str, m: EventMailMessage,
 
     if m.confirmedOnly and num_of_confirmed_participants(event["participants"]) == 0:
         raise HTTPException(400, "No confirmed participants in event")
+    
+    if m.waitListOnly and num_of_waitlist_participants(event["participants"]) == 0:
+        raise HTTPException(400, "No waitlist participants in event")
 
     if len(m.subject) > 50:
         raise HTTPException(400, "Email subject is too long")
@@ -608,12 +611,18 @@ async def send_notification_mail(request: Request, id: str, m: EventMailMessage,
     pipeline = [
         {"$match": {"eid": event["eid"]}},
         {"$unwind": {"path": "$participants"}},
-        {"$group": {"_id": "$participants.email"}},
     ]
 
     # Only send mail to confirmed participants if specified
     if m.confirmedOnly:
         pipeline += [{"$match": {"participants.confirmed": True}}]
+
+    # Only send mail to waitlisted participants if specified
+    if m.waitListOnly:
+        pipeline += [{"$match": {"participants.confirmed": False}}]
+
+    # Group by email after filtering
+    pipeline.append({"$group": {"_id": "$participants.email"}})
 
     participantsToMail = db.events.aggregate(pipeline)
     mailingList = [p["_id"] for p in participantsToMail]
