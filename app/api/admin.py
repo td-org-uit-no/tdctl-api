@@ -9,6 +9,7 @@ from ..db import get_database
 from ..models import AccessTokenPayload, AdminMemberUpdate, MemberInput, PenaltyInput, Role, Status
 from ..auth_helpers import authorize_admin
 from ..utils import passwordError
+from . import members
 
 router = APIRouter()
 
@@ -61,6 +62,7 @@ def create_admin_user(request: Request, newAdmin: MemberInput, token: AccessToke
     )
     return Response(status_code=201)
 
+@members.router.put('/{id}', dependencies=[Depends(validate_uuid)])
 @router.put('/member/{id}', dependencies=[Depends(validate_uuid)])
 def update_member(request: Request, id: str, memberData: AdminMemberUpdate, token: AccessTokenPayload = Depends(authorize_admin)):
     db = get_database(request)
@@ -91,6 +93,7 @@ def update_member(request: Request, id: str, memberData: AdminMemberUpdate, toke
 
 # minimum delete i.e only from the members collection
 # TODO add full deletion for a user
+@members.router.delete('/{id}', dependencies=[Depends(validate_uuid)])
 @router.delete('/member/{id}', dependencies=[Depends(validate_uuid)])
 def delete_member(request: Request, id: str, token: AccessTokenPayload = Depends(authorize_admin)):
     db = get_database(request)
