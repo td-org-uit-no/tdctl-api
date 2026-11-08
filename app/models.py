@@ -177,15 +177,6 @@ class EventUserView(EventInput):
     eid: UUID4
 
 
-class Event(EventUserView):
-    # The TD member responsible for the event
-    host: EmailStr
-    # Collects all user penalties registered, ensuring only one penalty is given per event
-    registeredPenalties: List[UUID4]
-    # Register id
-    register_id: Optional[UUID4] = None
-
-
 class EventUpdate(BaseModel):
     title: Optional[str] = None
     date: Optional[datetime] = None
@@ -210,7 +201,13 @@ class EventMailMessage(BaseModel):
     confirmedOnly: Optional[bool] = False
 
 
-class EventDB(Event):
+class EventDB(EventUserView):
+    # The TD member responsible for the event
+    host: EmailStr
+    # Collects all user penalties registered, ensuring only one penalty is given per event
+    registeredPenalties: List[UUID4]
+    # Register id
+    register_id: Optional[UUID4] = None
     participants: List[Participant]
 
 
