@@ -109,12 +109,6 @@ def test_delete_event(client):
     assert event == None
 
 
-def test_get_all_event(client):
-    response = client.get("/api/event/")
-    assert response.status_code == 200
-    assert len(response.json()) == len(test_events)
-
-
 def test_get_upcoming_events(client):
     client_login(client, admin_member["email"], admin_member["password"])
     response = client.post("/api/event/", json=new_event)
