@@ -56,18 +56,6 @@ def create_event(request: Request, newEvent: EventInput, token: AccessTokenPaylo
     return {'eid': eid.hex}
 
 
-@router.get('/')
-def get_all_event_ids(request: Request, token: AccessTokenPayload = Depends(optional_authentication)):
-    '''
-    returns all public events and if user is admin all events are returned
-    '''
-    db = get_database(request)
-    search_filter = {"public": {"$eq": True}}
-    if token and token.role == Role.admin:
-        search_filter = {}
-    return [str(event['eid']) for event in db.events.find(search_filter)]
-
-
 @router.get('/upcoming')
 def get_upcoming_events(request: Request, token: AccessTokenPayload = Depends(optional_authentication)):
     '''
