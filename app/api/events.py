@@ -73,12 +73,14 @@ def get_upcoming_events(request: Request, token: AccessTokenPayload = Depends(op
     # search filter for non admin users
     search_filter = {
         "$and": [{'date': {'$gt': date}}, {"public": {"$eq": True}}]}
+    view = EventUserView
     if token and token.role == Role.admin:
         search_filter = {'date': {"$gt": date}}
+        view = EventDB
 
     upcoming_events = db.events.find(search_filter)
 
-    return [Event.model_validate(event) for event in upcoming_events]
+    return [view.model_validate(event) for event in upcoming_events]
 
 
 @router.get('/past-events/count')
@@ -119,8 +121,10 @@ def get_past_events(request: Request, token: AccessTokenPayload = Depends(option
     # Apply search filter according to role
     search_filter = {
         "$and": [{'date': {'$lt': date}}, {"public": {"$eq": True}}]}
+    view = EventUserView
     if token and token.role == Role.admin:
         search_filter = {'date': {"$lt": date}}
+        view = EventDB
 
     fixed_limit = 10
     # Get the last events
@@ -139,7 +143,7 @@ def get_past_events(request: Request, token: AccessTokenPayload = Depends(option
     if not res:
         raise HTTPException(500)
 
-    return [Event.model_validate(event) for event in res]
+    return [view.model_validate(event) for event in res]
 
 
 @router.get('/joined-events')
