@@ -261,17 +261,13 @@ def delete_event_by_id(request: Request, id: str, AccessTokenPayload=Depends(aut
 def get_event_by_id(request: Request, id: str, token: AccessTokenPayload = Depends(optional_authentication)):
     db = get_database(request)
     event = get_event_or_404(db, id)
-    role = None
 
-    if token:
-        role = token.role
-    if event["public"] == False and role != Role.admin:
-        # only allow admin members acces to unpublished events
+    if token and token.role == Role.admin:
+        return EventDB.model_validate(event)
+
+    if not event["public"]:
         raise HTTPException(
             403, "Insufficient privileges to access this resource")
-
-    if role == Role.admin:
-        return EventDB.model_validate(event)
 
     return EventUserView.model_validate(event)
 
