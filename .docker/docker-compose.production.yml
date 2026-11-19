@@ -62,7 +62,8 @@ services:
     volumes:
       - ./certbot/data/certbot/conf:/etc/letsencrypt
       - ./certbot/data/certbot/www:/var/www/certbot
-    command: '/bin/sh -c ''while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g "daemon off;"'''
+    # exec, so docker's signals reach nginx instead of the shell
+    command: '/bin/sh -c ''while :; do sleep 6h & wait $${!}; nginx -s reload; done & exec nginx -g "daemon off;"'''
 
   certbot:
     image: certbot/certbot
